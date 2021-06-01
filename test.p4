@@ -145,16 +145,21 @@ control my_ingress(inout headers_t hdr,
     action to_next_level(bit<16> nodeId, bit<5>field ){
         meta.match_key[31:0]=0;
         meta.match_key[47:32]=nodeId;
-        meta.match_key[31:0] = (field == SRC_ADDR_FIELD)?hdr.ipv4.src_addr:meta.match_key[31:0];
-        meta.match_key[31:0] = (field == DST_ADDR_FIELD)?hdr.ipv4.dst_addr:meta.match_key[31:0];
-        meta.match_key[15:0] = (field == SRC_PORT_FIELD)?hdr.udp.srcPort:meta.match_key[15:0];
-        meta.match_key[15:0] = (field == DST_PORT_FIELD)?hdr.udp.dstPort:meta.match_key[15:0];
+        if (field == SRC_ADDR_FIELD) {
+            meta.match_key[31:0]=hdr.ipv4.src_addr;
+        } else if (field == DST_ADDR_FIELD) {
+            meta.match_key[31:0]=hdr.ipv4.dst_addr;
+        } else if (field == SRC_PORT_FIELD) {
+            meta.match_key[15:0]=hdr.udp.srcPort;
+        } else if (field == DST_PORT_FIELD) {
+            meta.match_key[15:0]=hdr.udp.dstPort;
+        }
         log_msg("sport = {}, dport = {},src={}", {hdr.udp.srcPort, hdr.udp.dstPort,hdr.ipv4.src_addr});
     }
 
     table dt_level0{
 	    key = {
-            meta.match_key:exact;
+            meta.match_key:ternary;
         }
         actions = {
             drop_action;

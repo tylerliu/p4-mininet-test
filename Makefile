@@ -29,3 +29,6 @@ docker-bash:
 docker-stop: 
 	docker stop $(DOCKER_NAME)
 	docker rm $(DOCKER_NAME)
+
+train: iot_decision_tree.py csv_files.zip
+	python3 iot_decision_tree.py -z csv_files.zip -i csv_files/16-09-23-labeled.csv -t csv_files/16-09-24-labeled.csv -o a.txt
