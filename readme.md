@@ -11,6 +11,8 @@
 - test_config.sh: the test table configuration - should be supplied by training script. 
 - test.p4: the preliminary p4 program for decision tree model. 
 - train_dump_decision_tree.py: the training script that dumps each decision node. 
+- iisy_decision_tree.p4: the IIsy decision tree data plane for NetFPGA.
+- iisy_sample_decision_tree.p4: the IIsy decision data plane, simplified version.
 
 ## Make commands:
 - `make`: build the p4 program for test.p4
