@@ -33,6 +33,9 @@ from sklearn.metrics import *
 from sklearn.tree import export_graphviz
 import pydotplus
 
+from sklearn import tree
+from matplotlib import pyplot as plt
+
 from zipfile import ZipFile
 
 
@@ -146,7 +149,7 @@ Y = np.array(Y)
 
 # decision tree fit
 
-dt = DecisionTreeClassifier(max_depth = 5)
+dt = DecisionTreeClassifier(max_depth = 5, criterion="entropy")
 dt.fit(X, Y)
 Predict_Y = dt.predict(X)
 print(accuracy_score(Y, Predict_Y))
@@ -154,6 +157,10 @@ print(accuracy_score(Y, Predict_Y))
 print("\tPrecision: %1.3f" % precision_score(Y, Predict_Y,average='weighted'))
 print("\tRecall: %1.3f" % recall_score(Y, Predict_Y,average='weighted'))
 print("\tF1: %1.3f\n" % f1_score(Y, Predict_Y,average='weighted'))
+
+plt.rcParams["figure.figsize"] = (15, 10)
+tree.plot_tree(dt)
+plt.show()
 
 #Test set 
 if zipFileName is not None:
