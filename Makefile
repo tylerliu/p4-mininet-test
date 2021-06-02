@@ -3,7 +3,7 @@ FLAGS=--target bmv2 --arch v1model --std p4-16
 
 DOCKER_NAME=bt
 
-all: test.p4i
+all: test.p4i tree.p4i
 
 test.p4i test.json: test.p4
 	$(COMPILER) $(FLAGS) $^
