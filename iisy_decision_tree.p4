@@ -24,12 +24,13 @@
 
 
 #include <core.p4>
-#include <sume_switch.p4>
+#include <v1model.p4>
 
 
 typedef bit<48> EthAddr_t; 
 typedef bit<32> IPv4Addr_t;
 typedef bit<16> TCPAddr_t;
+typedef bit<9>  port_t;
 
 #define IPV4_TYPE 0x0800
 #define IPV6_TYPE 0x86DD
@@ -118,7 +119,7 @@ parser TopParser(packet_in b,
                  out Parsed_packet p,
                  out user_metadata_t user_metadata,
                  out digest_data_t digest_data,
-                 inout sume_metadata_t sume_metadata) {
+                 inout standard_metadata_t standard_metadata) {
     state start {
         b.extract(p.ethernet);
         user_metadata.unused = 0;
@@ -157,16 +158,16 @@ parser TopParser(packet_in b,
 control TopPipe(inout Parsed_packet p,
                 inout user_metadata_t user_metadata, 
                 inout digest_data_t digest_data,
-                inout sume_metadata_t sume_metadata) {
+                inout standard_metadata_t standard_metadata) {
 
 
     action set_output_port(port_t port) {
-        sume_metadata.dst_port = port;
+        standard_metadata.egress_spec = port;
     }
 
     
     action set_default_port (){
-        sume_metadata.dst_port = 0x1;
+        standard_metadata.egress_spec = 0x1;
     }
 
  
@@ -194,7 +195,7 @@ control TopPipe(inout Parsed_packet p,
 //Lookup table - packet length
 
     table lookup_len {
-        key = { sume_metadata.pkt_len:ternary; }
+        key = { standard_metadata.pkt_len:ternary; }
 
         actions = {
             set_len_code;
@@ -293,7 +294,7 @@ control TopPipe(inout Parsed_packet p,
         }
   
         if (!lookup_code.apply().hit) {
-            sume_metadata.drop = 1;
+            standard_metadata.drop = 1;
         }
       }
 }
@@ -304,7 +305,7 @@ control TopDeparser(packet_out b,
                     in Parsed_packet p,
                     in user_metadata_t user_metadata,
                     inout digest_data_t digest_data,
-                    inout sume_metadata_t sume_metadata) { 
+                    inout standard_metadata_t standard_metadata) { 
     apply {
         b.emit(p.ethernet); 
         b.emit(p.ip);
@@ -315,5 +316,5 @@ control TopDeparser(packet_out b,
 
 
 // Instantiate the switch
-SimpleSumeSwitch(TopParser(), TopPipe(), TopDeparser()) main;
+V1Switch(TopParser(), TopPipe(), TopDeparser()) main;
 

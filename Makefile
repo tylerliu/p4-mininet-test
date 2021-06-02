@@ -5,7 +5,10 @@ DOCKER_NAME=bt
 
 all: test.p4i
 
-test.p4i test.json &: test.p4
+test.p4i test.json: test.p4
+	$(COMPILER) $(FLAGS) $^
+
+tree.p4i tree.json: tree.p4
 	$(COMPILER) $(FLAGS) $^
 
 run: test.p4i test_config.sh
