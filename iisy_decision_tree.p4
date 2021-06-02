@@ -28,11 +28,11 @@
 
 
 typedef bit<48> EthAddr_t; 
-typedef bit<32> IPv4Addr_t;
+typedef bit<32> ipAddr_t;
 typedef bit<16> TCPAddr_t;
 typedef bit<9>  port_t;
 
-#define IPV4_TYPE 0x0800
+#define ip_TYPE 0x0800
 #define IPV6_TYPE 0x86DD
 #define TCP_TYPE 6
 
@@ -43,8 +43,8 @@ header Ethernet_h {
     bit<16> etherType;
 }
 
-//IPv4 header without options
-header IPv4_h {
+//ip header without options
+header ip_h {
     bit<4> version;
     bit<4> ihl;
     bit<8> tos;
@@ -55,8 +55,8 @@ header IPv4_h {
     bit<8> ttl;
     bit<8> protocol;
     bit<16> hdrChecksum;
-    IPv4Addr_t srcAddr;
-    IPv4Addr_t dstAddr;
+    ipAddr_t srcAddr;
+    ipAddr_t dstAddr;
 }
 
 //IPv6 header
@@ -87,9 +87,9 @@ header TCP_h {
 
 
 // List of all recognized headers
-struct Parsed_packet {
+struct headers {
     Ethernet_h ethernet;
-    IPv4_h ip;
+    ip_h ip;
     IPv6_h ip6;
     TCP_h tcp;
 }
@@ -98,7 +98,7 @@ struct Parsed_packet {
 // user defined metadata
 // used for coding the decision word
 //each code is a result of a lookup
-struct user_metadata_t {
+struct metadata {
     bit<5> pkt_len_code;
     bit<5> ip_proto_code;
     bit<5> ip_flags_code;
@@ -107,59 +107,63 @@ struct user_metadata_t {
     bit<7> unused; 
 }
 
-// digest_data, MUST be 256 bits
-struct digest_data_t {
-    bit<256> unused;
-}
+/*************************************************************************
+*********************** P A R S E R  ***********************************
+*************************************************************************/
 
-// Parser Implementation
+parser MyParser(packet_in packet,
+                out headers hdr,
+                inout metadata meta,
+                inout standard_metadata_t standard_metadata) {
 
-@Xilinx_MaxPacketRegion(8192)
-parser TopParser(packet_in b,
-                 out Parsed_packet p,
-                 out user_metadata_t user_metadata,
-                 out digest_data_t digest_data,
-                 inout standard_metadata_t standard_metadata) {
     state start {
-        b.extract(p.ethernet);
-        user_metadata.unused = 0;
-        digest_data.unused = 0;
-        transition select(p.ethernet.etherType) {
-            IPV4_TYPE: parse_ipv4;
+        packet.extract(hdr.ethernet);
+        meta.unused = 0;
+        transition select(hdr.ethernet.etherType) {
+            ip_TYPE: parse_ip;
             IPV6_TYPE: parse_ipv6;
             default: accept;
         }
     }
 
-    state parse_ipv4 {
-        b.extract(p.ip);
-        transition select(p.ip.protocol) {
+    state parse_ip {
+        packet.extract(hdr.ip);
+        transition select(hdr.ip.protocol) {
             TCP_TYPE: parse_tcp;
             default: accept;
         }
     }
 
     state parse_ipv6 {
-        b.extract(p.ip6);
-        transition select(p.ip6.nxt) {
+        packet.extract(hdr.ip6);
+        transition select(hdr.ip6.nxt) {
             TCP_TYPE: parse_tcp;
             default: accept;
         }
     }
 
     state parse_tcp {
-        b.extract(p.tcp);
+        packet.extract(hdr.tcp);
         transition accept;
     }
 }
 
+/*************************************************************************
+************   C H E C K S U M    V E R I F I C A T I O N   *************
+*************************************************************************/
 
-// match-action pipeline
-control TopPipe(inout Parsed_packet p,
-                inout user_metadata_t user_metadata, 
-                inout digest_data_t digest_data,
-                inout standard_metadata_t standard_metadata) {
+control MyVerifyChecksum(inout headers hdr, inout metadata meta) {   
+    apply {  }
+}
 
+
+/*************************************************************************
+**************  I N G R E S S   P R O C E S S I N G   *******************
+*************************************************************************/
+
+control MyIngress(inout headers hdr,
+                  inout metadata meta,
+                  inout standard_metadata_t standard_metadata) {
 
     action set_output_port(port_t port) {
         standard_metadata.egress_spec = port;
@@ -172,30 +176,30 @@ control TopPipe(inout Parsed_packet p,
 
  
     action set_len_code(bit<5> code){
-        user_metadata.pkt_len_code = code;
+        meta.pkt_len_code = code;
     }
     
     action set_ip_proto_code(bit<5> code){
-        user_metadata.ip_proto_code = code;
+        meta.ip_proto_code = code;
     }
 
     action set_ip_flags_code(bit<5> code){
-        user_metadata.ip_flags_code = code;
+        meta.ip_flags_code = code;
     }
     
     action set_tcp_srcport_code(bit<5> code){
-        user_metadata.tcp_srcport_code = code;
+        meta.tcp_srcport_code = code;
     }
 
     action set_tcp_dstport_code(bit<5> code){
-        user_metadata.tcp_dstport_code = code;
+        meta.tcp_dstport_code = code;
     }
 
 
 //Lookup table - packet length
 
     table lookup_len {
-        key = { standard_metadata.pkt_len:ternary; }
+        key = { standard_metadata.packet_length:ternary; }
 
         actions = {
             set_len_code;
@@ -206,10 +210,10 @@ control TopPipe(inout Parsed_packet p,
     }
 
 
-//Lookup table - IPv4 protocol
+//Lookup table - ip protocol
 
     table lookup_ip_proto {
-        key = { p.ip.protocol:ternary; }
+        key = { hdr.ip.protocol:ternary; }
 
         actions = {
             set_ip_proto_code;
@@ -219,9 +223,9 @@ control TopPipe(inout Parsed_packet p,
         default_action = NoAction;
     }
 
-//Lookup table - IPv4 flags
+//Lookup table - ip flags
     table lookup_ip_flags {
-        key = { p.ip.flags:ternary; }
+        key = { hdr.ip.flags:ternary; }
 
         actions = {
             set_ip_flags_code;
@@ -234,7 +238,7 @@ control TopPipe(inout Parsed_packet p,
 
 //Lookup table - TCP source port
      table lookup_tcp_srcport {
-        key = { p.tcp.srcPort:ternary; }
+        key = { hdr.tcp.srcPort:ternary; }
 
         actions = {
             set_tcp_srcport_code;
@@ -246,7 +250,7 @@ control TopPipe(inout Parsed_packet p,
 
 //Lookup table - TCP dest port
      table lookup_tcp_dstport {
-        key = { p.tcp.dstPort:ternary; }
+        key = { hdr.tcp.dstPort:ternary; }
 
         actions = {
             set_tcp_dstport_code;
@@ -258,7 +262,7 @@ control TopPipe(inout Parsed_packet p,
 
 //Decision table - lookup code
      table lookup_code {
-        key = { user_metadata.pkt_len_code++user_metadata.ip_proto_code++user_metadata.ip_flags_code++user_metadata.tcp_srcport_code++user_metadata.tcp_dstport_code:exact @name("code"); }
+        key = { meta.pkt_len_code++meta.ip_proto_code++meta.ip_flags_code++meta.tcp_srcport_code++meta.tcp_dstport_code:exact @name("code"); }
 
         actions = {
             set_output_port;
@@ -273,48 +277,90 @@ control TopPipe(inout Parsed_packet p,
 
     apply {
 
-        user_metadata.pkt_len_code=0;
-        user_metadata.ip_proto_code=0;
-        user_metadata.ip_flags_code=0;
-        user_metadata.tcp_srcport_code=0;
-        user_metadata.tcp_dstport_code=0;
+        meta.pkt_len_code=0;
+        meta.ip_proto_code=0;
+        meta.ip_flags_code=0;
+        meta.tcp_srcport_code=0;
+        meta.tcp_dstport_code=0;
        
         lookup_len.apply();
         
 
-        if (p.ip.isValid()) {
+        if (hdr.ip.isValid()) {
 
             lookup_ip_proto.apply();
             lookup_ip_flags.apply();
         }
 
-        if (p.tcp.isValid()){
+        if (hdr.tcp.isValid()){
             lookup_tcp_srcport.apply();
             lookup_tcp_dstport.apply();
         }
   
         if (!lookup_code.apply().hit) {
-            standard_metadata.drop = 1;
+            mark_to_drop(standard_metadata);
         }
       }
 }
 
-// Deparser Implementation
-@Xilinx_MaxPacketRegion(1024)
-control TopDeparser(packet_out b,
-                    in Parsed_packet p,
-                    in user_metadata_t user_metadata,
-                    inout digest_data_t digest_data,
-                    inout standard_metadata_t standard_metadata) { 
+/*************************************************************************
+****************  E G R E S S   P R O C E S S I N G   *******************
+*************************************************************************/
+
+control MyEgress(inout headers hdr,
+                 inout metadata meta,
+                 inout standard_metadata_t standard_metadata) {
+    apply {  }
+}
+
+/*************************************************************************
+*************   C H E C K S U M    C O M P U T A T I O N   **************
+*************************************************************************/
+
+control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
+     apply {
+        update_checksum(
+            hdr.ip.isValid(),
+                { 
+                    hdr.ip.version,
+                    hdr.ip.ihl,
+                    hdr.ip.tos,
+                    hdr.ip.totalLen,
+                    hdr.ip.identification,
+                    hdr.ip.flags,
+                    hdr.ip.fragOffset,
+                    hdr.ip.ttl,
+                    hdr.ip.protocol,
+                    hdr.ip.srcAddr,
+                    hdr.ip.dstAddr 
+                },
+                hdr.ip.hdrChecksum,
+                HashAlgorithm.csum16);
+        }
+}
+
+/*************************************************************************
+***********************  D E P A R S E R  *******************************
+*************************************************************************/
+
+control MyDeparser(packet_out packet, in headers hdr) {
     apply {
-        b.emit(p.ethernet); 
-        b.emit(p.ip);
-        b.emit(p.ip6);
-	b.emit(p.tcp);
+        packet.emit(hdr.ethernet); 
+        packet.emit(hdr.ip);
+        packet.emit(hdr.ip6);
+	    packet.emit(hdr.tcp);
     }
 }
 
+/*************************************************************************
+***********************  S W I T C H  *******************************
+*************************************************************************/
 
-// Instantiate the switch
-V1Switch(TopParser(), TopPipe(), TopDeparser()) main;
-
+V1Switch(
+MyParser(),
+MyVerifyChecksum(),
+MyIngress(),
+MyEgress(),
+MyComputeChecksum(),
+MyDeparser()
+) main;
