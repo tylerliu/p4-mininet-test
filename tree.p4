@@ -186,26 +186,19 @@ control my_ingress(inout headers_t hdr,
     }
 
     action to_next_level(bit<16> nodeId, bit<5>field ){
-        meta.match_key=0;
         meta.match_node=nodeId;
-        if (field == SRC_ADDR_FIELD) {
-            meta.match_key[31:0]=hdr.ipv4.src_addr;
-        } else if (field == DST_ADDR_FIELD) {
-            meta.match_key[31:0]=hdr.ipv4.dst_addr;
-        } else if (field == SRC_PORT_FIELD) {
-            meta.match_key[15:0]=hdr.tcp_udp.srcPort;
-        } else if (field == DST_PORT_FIELD) {
-            meta.match_key[15:0]=hdr.tcp_udp.dstPort;
-        } else if (field == FRAME_LEN_FIELD) {
-            meta.match_key[31:0]=standard_metadata.packet_length;
-        } else if (field == ETH_TYPE_FIELD) {
-            meta.match_key[15:0]=hdr.ethernet.ether_type;
-        } else if (field == IP_PROTO_FIELD) {
-            if (hdr.ipv4.isValid())
-                meta.match_key[7:0]=hdr.ipv4.protocol;
-            else if (hdr.ipv6.isValid())
-                meta.match_key[7:0]=hdr.ipv6.nxt;
-        }
+
+        meta.match_key =    
+            (field == SRC_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.src_addr : 0) |
+            (field == SRC_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.srcAddr : 0)  |
+            (field == DST_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.dst_addr : 0) |
+            (field == DST_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.dstAddr : 0)  |
+            (field == SRC_PORT_FIELD ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
+            (field == DST_PORT_FIELD ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
+            (field == FRAME_LEN_FIELD ? (bit<32>) standard_metadata.packet_length : 0) |
+            (field == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.ether_type : 0) |
+            (field == IP_PROTO_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.protocol : 0) |
+            (field == IP_PROTO_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.nxt : 0);
 
         log_msg("sport = {}, dport = {},src={}", {hdr.tcp_udp.srcPort, hdr.tcp_udp.dstPort,hdr.ipv4.src_addr});
     }
