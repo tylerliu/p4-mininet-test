@@ -15,6 +15,7 @@ run: test.p4i test_config.sh
 	./mininet-run/single_switch_mininet.py  \
 	--behavioral-exe simple_switch \
 	--json test.json \
+        --log-file switch_log.txt \
 	--switch-config test_config.sh
 
 docker-build: Dockerfile
