@@ -170,17 +170,13 @@ control my_ingress(inout headers_t hdr,
     bool dropped = false;
     bool dtFinished = false;
 
-    action noop(){
-        dtFinished = true;
-    }
-
     action drop_action() {
         mark_to_drop(standard_metadata);
         dropped = true;
         dtFinished = true;
     }
 
-    action to_port_action_dt(bit<9> port){
+    action to_port_action(bit<9> port){
         standard_metadata.egress_spec = port;
         dtFinished = true;
     }
@@ -204,17 +200,13 @@ control my_ingress(inout headers_t hdr,
     }
 
     table dt_level0{
-	    key = {
-            meta.match_key:range;
-        }
+	    key = {}
         actions = {
             drop_action;
-            to_port_action_dt;
+            to_port_action;
             to_next_level;
-            noop;
         }
-        size=16;
-        default_action = noop;
+        default_action = drop_action;
     }
 
     table dt_level1{
@@ -224,11 +216,11 @@ control my_ingress(inout headers_t hdr,
         }
         actions = {
             drop_action;
-            to_port_action_dt;
+            to_port_action;
             to_next_level;
-            noop;
         }
-        default_action = noop;
+        size=4;
+        default_action = drop_action;
     }
 
     table dt_level2{
@@ -238,11 +230,11 @@ control my_ingress(inout headers_t hdr,
         }
         actions = {
             drop_action;
-            to_port_action_dt;
+            to_port_action;
             to_next_level;
-            noop;
         }
-        default_action = noop;
+        size=16;
+        default_action = drop_action;
     }
 
     table dt_level3{
@@ -252,11 +244,10 @@ control my_ingress(inout headers_t hdr,
         }
         actions = {
             drop_action;
-            to_port_action_dt;
+            to_port_action;
             to_next_level;
-            noop;
         }
-        default_action = noop;
+        default_action = drop_action;
     }
 
     table dt_level4{
@@ -266,54 +257,28 @@ control my_ingress(inout headers_t hdr,
         }
         actions = {
             drop_action;
-            to_port_action_dt;
+            to_port_action;
             to_next_level;
-            noop;
         }
-        default_action = noop;
+        default_action = drop_action;
     }
 
-    action to_port_action(bit<9> port) {
-        hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
-        standard_metadata.egress_spec = port;
-    }
-
-    table ipv4_match {
-        key = {
-            hdr.ipv4.dst_addr: lpm;
+    table dt_level5{
+	    key = {
+            meta.match_node:exact;
+            meta.match_key:range;
         }
         actions = {
             drop_action;
             to_port_action;
+            to_next_level;
         }
-        size = 1024;
-        default_action = drop_action;
-    }
-
-    action to_port_action_6(bit<9> port) {
-        hdr.ipv6.hopLimit = hdr.ipv6.hopLimit - 1;
-        standard_metadata.egress_spec = port;
-    }
-
-    table ipv6_match {
-        key = {
-            hdr.ipv6.dstAddr: lpm;
-        }
-        actions = {
-            drop_action;
-            to_port_action_6;
-        }
-        size = 1024;
         default_action = drop_action;
     }
 
     apply {
-        if (hdr.ipv4.isValid())
-            ipv4_match.apply();
-        else if (hdr.ipv6.isValid())
-            ipv6_match.apply();
-        if (dropped) return;
-
+        if (hdr.ipv4.isValid()) hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+        if (hdr.ipv6.isValid()) hdr.ipv6.hopLimit = hdr.ipv6.hopLimit - 1;
         dt_level0.apply();
         if (dtFinished) return;
         dt_level1.apply();
@@ -323,6 +288,8 @@ control my_ingress(inout headers_t hdr,
         dt_level3.apply();
         if (dtFinished) return;
         dt_level4.apply();
+        if (dtFinished) return;
+        dt_level5.apply();
     }
 }
 

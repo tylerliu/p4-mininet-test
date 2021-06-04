@@ -18,6 +18,7 @@
 ## Make commands:
 - `make`: build the p4 program for test.p4
 - `make run`: run the compiled p4 program (in the docker)
+- `make run-test`: run the compiled preliminary p4 program (in the docker)
 - `make docker-build`: build the docker image
 - `make docker-run`: run the docker image
 - `make docker-bash`: spawn a shell for the docker instance
