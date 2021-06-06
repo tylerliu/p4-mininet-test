@@ -78,7 +78,8 @@ struct headers_t {
 
 struct metadata_t {
     bit<16> match_node;
-    bit<32> match_key;
+    bit<32> match_key1;
+    bit<32> match_key2;
 }
 
 error {
@@ -181,22 +182,35 @@ control my_ingress(inout headers_t hdr,
         dtFinished = true;
     }
 
-    action to_next_level(bit<16> nodeId, bit<5>field ){
+    action to_next_level(bit<16> nodeId, bit<5>field1, bit<5>field2){
         meta.match_node=nodeId;
 
-        meta.match_key =    
-            (field == SRC_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.src_addr : 0) |
-            (field == SRC_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.srcAddr : 0)  |
-            (field == DST_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.dst_addr : 0) |
-            (field == DST_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.dstAddr : 0)  |
-            (field == SRC_PORT_FIELD ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
-            (field == DST_PORT_FIELD ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
-            (field == FRAME_LEN_FIELD ? (bit<32>) standard_metadata.packet_length : 0) |
-            (field == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.ether_type : 0) |
-            (field == IP_PROTO_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.protocol : 0) |
-            (field == IP_PROTO_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.nxt : 0);
+        meta.match_key1 =    
+            (field1 == SRC_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.src_addr : 0) |
+            (field1 == SRC_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.srcAddr : 0)  |
+            (field1 == DST_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.dst_addr : 0) |
+            (field1 == DST_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.dstAddr : 0)  |
+            (field1 == SRC_PORT_FIELD ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
+            (field1 == DST_PORT_FIELD ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
+            (field1 == FRAME_LEN_FIELD ? (bit<32>) standard_metadata.packet_length : 0) |
+            (field1 == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.ether_type : 0) |
+            (field1 == IP_PROTO_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.protocol : 0) |
+            (field1 == IP_PROTO_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.nxt : 0);
+        
+        meta.match_key2 =    
+            (field2 == SRC_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.src_addr : 0) |
+            (field2 == SRC_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.srcAddr : 0)  |
+            (field2 == DST_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.dst_addr : 0) |
+            (field2 == DST_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.dstAddr : 0)  |
+            (field2 == SRC_PORT_FIELD ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
+            (field2 == DST_PORT_FIELD ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
+            (field2 == FRAME_LEN_FIELD ? (bit<32>) standard_metadata.packet_length : 0) |
+            (field2 == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.ether_type : 0) |
+            (field2 == IP_PROTO_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.protocol : 0) |
+            (field2 == IP_PROTO_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.nxt : 0);
 
-        log_msg("field = {}, match_node = {}, match_key = {}", {field, meta.match_node, meta.match_key});
+        log_msg("match_node = {}, field1 = {}, match_key1 = {}, field2 = {}, match_key2 = {}", 
+                {meta.match_node, field1, meta.match_key1, field2, meta.match_key2});
     }
 
     table dt_level0{
@@ -212,21 +226,8 @@ control my_ingress(inout headers_t hdr,
     table dt_level1{
 	    key = {
             meta.match_node:exact;
-            meta.match_key:range;
-        }
-        actions = {
-            drop_action;
-            to_port_action;
-            to_next_level;
-        }
-        size=4;
-        default_action = drop_action;
-    }
-
-    table dt_level2{
-	    key = {
-            meta.match_node:exact;
-            meta.match_key:range;
+            meta.match_key1:range;
+            meta.match_key2:range;
         }
         actions = {
             drop_action;
@@ -237,10 +238,25 @@ control my_ingress(inout headers_t hdr,
         default_action = drop_action;
     }
 
+    table dt_level2{
+	    key = {
+            meta.match_node:exact;
+            meta.match_key1:range;
+            meta.match_key2:range;
+        }
+        actions = {
+            drop_action;
+            to_port_action;
+            to_next_level;
+        }
+        default_action = drop_action;
+    }
+
     table dt_level3{
 	    key = {
             meta.match_node:exact;
-            meta.match_key:range;
+            meta.match_key1:range;
+            meta.match_key2:range;
         }
         actions = {
             drop_action;
@@ -253,7 +269,8 @@ control my_ingress(inout headers_t hdr,
     table dt_level4{
 	    key = {
             meta.match_node:exact;
-            meta.match_key:range;
+            meta.match_key1:range;
+            meta.match_key2:range;
         }
         actions = {
             drop_action;
@@ -266,7 +283,8 @@ control my_ingress(inout headers_t hdr,
     table dt_level5{
 	    key = {
             meta.match_node:exact;
-            meta.match_key:range;
+            meta.match_key1:range;
+            meta.match_key2:range;
         }
         actions = {
             drop_action;

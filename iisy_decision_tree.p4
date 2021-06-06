@@ -35,6 +35,7 @@ typedef bit<9>  port_t;
 #define ip_TYPE 0x0800
 #define IPV6_TYPE 0x86DD
 #define TCP_TYPE 6
+#define UDP_TYPE 6
 
 //Standard Ethernet Header
 header Ethernet_h {
@@ -72,17 +73,9 @@ header IPv6_h{
 }
 
 //TCP header without options
-header TCP_h {
+header TCP_UDP_h {
     bit<16> srcPort;
     bit<16> dstPort;
-    bit<32> seqNo;
-    bit<32> ackNo;
-    bit<4> dataOffset;
-    bit<4> res;
-    bit<8> flags;
-    bit<16> window;
-    bit<16> checksum;
-    bit<16> urgentPtr;
 }
 
 
@@ -91,7 +84,7 @@ struct headers {
     Ethernet_h ethernet;
     ip_h ip;
     IPv6_h ip6;
-    TCP_h tcp;
+    TCP_UDP_h tcp_udp;
 }
 
 
@@ -100,10 +93,10 @@ struct headers {
 //each code is a result of a lookup
 struct metadata {
     bit<5> pkt_len_code;
+    bit<5> eth_type_code;
     bit<5> ip_proto_code;
-    bit<5> ip_flags_code;
-    bit<5> tcp_srcport_code;
-    bit<5> tcp_dstport_code;
+    bit<5> srcport_code;
+    bit<5> dstport_code;
     bit<7> unused; 
 }
 
@@ -129,7 +122,8 @@ parser MyParser(packet_in packet,
     state parse_ip {
         packet.extract(hdr.ip);
         transition select(hdr.ip.protocol) {
-            TCP_TYPE: parse_tcp;
+            TCP_TYPE: parse_tcp_udp;
+            UDP_TYPE: parse_tcp_udp;
             default: accept;
         }
     }
@@ -137,13 +131,14 @@ parser MyParser(packet_in packet,
     state parse_ipv6 {
         packet.extract(hdr.ip6);
         transition select(hdr.ip6.nxt) {
-            TCP_TYPE: parse_tcp;
+            TCP_TYPE: parse_tcp_udp;
+            UDP_TYPE: parse_tcp_udp;
             default: accept;
         }
     }
 
-    state parse_tcp {
-        packet.extract(hdr.tcp);
+    state parse_tcp_udp {
+        packet.extract(hdr.tcp_udp);
         transition accept;
     }
 }
@@ -183,16 +178,16 @@ control MyIngress(inout headers hdr,
         meta.ip_proto_code = code;
     }
 
-    action set_ip_flags_code(bit<5> code){
-        meta.ip_flags_code = code;
+    action set_eth_type_code(bit<5> code){
+        meta.eth_type_code = code;
     }
     
-    action set_tcp_srcport_code(bit<5> code){
-        meta.tcp_srcport_code = code;
+    action set_srcport_code(bit<5> code){
+        meta.srcport_code = code;
     }
 
-    action set_tcp_dstport_code(bit<5> code){
-        meta.tcp_dstport_code = code;
+    action set_dstport_code(bit<5> code){
+        meta.dstport_code = code;
     }
 
 
@@ -213,7 +208,7 @@ control MyIngress(inout headers hdr,
 //Lookup table - ip protocol
 
     table lookup_ip_proto {
-        key = { hdr.ip.protocol:ternary; }
+        key = { hdr.ip.protocol :ternary; }
 
         actions = {
             set_ip_proto_code;
@@ -223,12 +218,12 @@ control MyIngress(inout headers hdr,
         default_action = NoAction;
     }
 
-//Lookup table - ip flags
-    table lookup_ip_flags {
-        key = { hdr.ip.flags:ternary; }
+//Lookup table - ethernet type
+    table lookup_eth_type {
+        key = { hdr.ethernet.etherType:ternary; }
 
         actions = {
-            set_ip_flags_code;
+            set_eth_type_code;
             NoAction;
         }
         size = 63;
@@ -237,11 +232,11 @@ control MyIngress(inout headers hdr,
 
 
 //Lookup table - TCP source port
-     table lookup_tcp_srcport {
-        key = { hdr.tcp.srcPort:ternary; }
+     table lookup_srcport {
+        key = { hdr.tcp_udp.srcPort:ternary; }
 
         actions = {
-            set_tcp_srcport_code;
+            set_srcport_code;
             NoAction;
         }
         size = 63;
@@ -249,11 +244,11 @@ control MyIngress(inout headers hdr,
     }
 
 //Lookup table - TCP dest port
-     table lookup_tcp_dstport {
-        key = { hdr.tcp.dstPort:ternary; }
+     table lookup_dstport {
+        key = { hdr.tcp_udp.dstPort:ternary; }
 
         actions = {
-            set_tcp_dstport_code;
+            set_dstport_code;
 	    NoAction;
         }
         size = 63;
@@ -262,7 +257,7 @@ control MyIngress(inout headers hdr,
 
 //Decision table - lookup code
      table lookup_code {
-        key = { meta.pkt_len_code++meta.ip_proto_code++meta.ip_flags_code++meta.tcp_srcport_code++meta.tcp_dstport_code:exact @name("code"); }
+        key = { meta.pkt_len_code++meta.eth_type_code++meta.ip_proto_code++meta.srcport_code++meta.dstport_code:exact @name("code"); }
 
         actions = {
             set_output_port;
@@ -279,22 +274,23 @@ control MyIngress(inout headers hdr,
 
         meta.pkt_len_code=0;
         meta.ip_proto_code=0;
-        meta.ip_flags_code=0;
-        meta.tcp_srcport_code=0;
-        meta.tcp_dstport_code=0;
+        meta.eth_type_code=0;
+        meta.srcport_code=0;
+        meta.dstport_code=0;
        
         lookup_len.apply();
         
-
-        if (hdr.ip.isValid()) {
-
-            lookup_ip_proto.apply();
-            lookup_ip_flags.apply();
+        if (hdr.ethernet.isValid()) {
+            lookup_eth_type.apply();
         }
 
-        if (hdr.tcp.isValid()){
-            lookup_tcp_srcport.apply();
-            lookup_tcp_dstport.apply();
+        if (hdr.ip.isValid()) {
+            lookup_ip_proto.apply();
+        }
+
+        if (hdr.tcp_udp.isValid()){
+            lookup_srcport.apply();
+            lookup_dstport.apply();
         }
   
         if (!lookup_code.apply().hit) {
@@ -348,7 +344,7 @@ control MyDeparser(packet_out packet, in headers hdr) {
         packet.emit(hdr.ethernet); 
         packet.emit(hdr.ip);
         packet.emit(hdr.ip6);
-	    packet.emit(hdr.tcp);
+	    packet.emit(hdr.tcp_udp);
     }
 }
 
