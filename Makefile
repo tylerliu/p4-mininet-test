@@ -5,14 +5,14 @@ DOCKER_NAME=bt
 
 all: tree.p4i tree-hyper.p4i iisy_decision_tree.p4i
 
-tree.p4i tree.json: tree.p4
-	$(COMPILER) $(FLAGS) $^
+tree.p4i tree.json: tree.p4 headers.p4
+	$(COMPILER) $(FLAGS) $<
 
-tree-hyper.p4i tree-hyper.json: tree-hyper.p4
-	$(COMPILER) $(FLAGS) $^
+tree-hyper.p4i tree-hyper.json: tree-hyper.p4 headers.p4
+	$(COMPILER) $(FLAGS) $<
 
-iisy_decision_tree.p4i iisy_decision_tree.json: iisy_decision_tree.p4
-	$(COMPILER) $(FLAGS) $^
+iisy_decision_tree.p4i iisy_decision_tree.json: iisy_decision_tree.p4 headers.p4
+	$(COMPILER) $(FLAGS) $<
 
 run: tree.p4i test_config_tree.sh
 	./mininet-run/single_switch_mininet.py  \

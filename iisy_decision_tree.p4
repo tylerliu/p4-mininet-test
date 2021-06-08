@@ -25,68 +25,9 @@
 
 #include <core.p4>
 #include <v1model.p4>
+#include "headers.p4"
 
-
-typedef bit<48> EthAddr_t; 
-typedef bit<32> ipAddr_t;
-typedef bit<16> TCPAddr_t;
 typedef bit<9>  port_t;
-
-#define ip_TYPE 0x0800
-#define IPV6_TYPE 0x86DD
-#define TCP_TYPE 6
-#define UDP_TYPE 6
-
-//Standard Ethernet Header
-header Ethernet_h {
-    EthAddr_t dstAddr;
-    EthAddr_t srcAddr;
-    bit<16> etherType;
-}
-
-//ip header without options
-header ip_h {
-    bit<4> version;
-    bit<4> ihl;
-    bit<8> tos;
-    bit<16> totalLen;
-    bit<16> identification;
-    bit<3> flags;
-    bit<13> fragOffset;
-    bit<8> ttl;
-    bit<8> protocol;
-    bit<16> hdrChecksum;
-    ipAddr_t srcAddr;
-    ipAddr_t dstAddr;
-}
-
-//IPv6 header
-header IPv6_h{
-  bit<4> version;
-  bit<8> trafficClass;
-  bit<20> flowLabel;
-  bit<16> payloadLen;
-  bit<8> nxt;
-  bit<8> hopLimit;
-  bit<128> srcAddr;
-  bit<128> dstAddr;
-}
-
-//TCP header without options
-header TCP_UDP_h {
-    bit<16> srcPort;
-    bit<16> dstPort;
-}
-
-
-// List of all recognized headers
-struct headers {
-    Ethernet_h ethernet;
-    ip_h ip;
-    IPv6_h ip6;
-    TCP_UDP_h tcp_udp;
-}
-
 
 // user defined metadata
 // used for coding the decision word
@@ -105,7 +46,7 @@ struct metadata {
 *************************************************************************/
 
 parser MyParser(packet_in packet,
-                out headers hdr,
+                out headers_t hdr,
                 inout metadata meta,
                 inout standard_metadata_t standard_metadata) {
 
@@ -113,15 +54,15 @@ parser MyParser(packet_in packet,
         packet.extract(hdr.ethernet);
         meta.unused = 0;
         transition select(hdr.ethernet.etherType) {
-            ip_TYPE: parse_ip;
+            IPV4_TYPE: parse_ip;
             IPV6_TYPE: parse_ipv6;
             default: accept;
         }
     }
 
     state parse_ip {
-        packet.extract(hdr.ip);
-        transition select(hdr.ip.protocol) {
+        packet.extract(hdr.ipv4);
+        transition select(hdr.ipv4.protocol) {
             TCP_TYPE: parse_tcp_udp;
             UDP_TYPE: parse_tcp_udp;
             default: accept;
@@ -129,8 +70,8 @@ parser MyParser(packet_in packet,
     }
 
     state parse_ipv6 {
-        packet.extract(hdr.ip6);
-        transition select(hdr.ip6.nxt) {
+        packet.extract(hdr.ipv6);
+        transition select(hdr.ipv6.nxt) {
             TCP_TYPE: parse_tcp_udp;
             UDP_TYPE: parse_tcp_udp;
             default: accept;
@@ -147,7 +88,7 @@ parser MyParser(packet_in packet,
 ************   C H E C K S U M    V E R I F I C A T I O N   *************
 *************************************************************************/
 
-control MyVerifyChecksum(inout headers hdr, inout metadata meta) {   
+control MyVerifyChecksum(inout headers_t hdr, inout metadata meta) {   
     apply {  }
 }
 
@@ -156,7 +97,7 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 **************  I N G R E S S   P R O C E S S I N G   *******************
 *************************************************************************/
 
-control MyIngress(inout headers hdr,
+control MyIngress(inout headers_t hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
@@ -208,7 +149,7 @@ control MyIngress(inout headers hdr,
 //Lookup table - ip protocol
 
     table lookup_ip_proto {
-        key = { hdr.ip.protocol :ternary; }
+        key = { hdr.ipv4.protocol :ternary; }
 
         actions = {
             set_ip_proto_code;
@@ -284,7 +225,7 @@ control MyIngress(inout headers hdr,
             lookup_eth_type.apply();
         }
 
-        if (hdr.ip.isValid()) {
+        if (hdr.ipv4.isValid()) {
             lookup_ip_proto.apply();
         }
 
@@ -303,7 +244,7 @@ control MyIngress(inout headers hdr,
 ****************  E G R E S S   P R O C E S S I N G   *******************
 *************************************************************************/
 
-control MyEgress(inout headers hdr,
+control MyEgress(inout headers_t hdr,
                  inout metadata meta,
                  inout standard_metadata_t standard_metadata) {
     apply {  }
@@ -313,24 +254,24 @@ control MyEgress(inout headers hdr,
 *************   C H E C K S U M    C O M P U T A T I O N   **************
 *************************************************************************/
 
-control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
+control MyComputeChecksum(inout headers_t  hdr, inout metadata meta) {
      apply {
         update_checksum(
-            hdr.ip.isValid(),
+            hdr.ipv4.isValid(),
                 { 
-                    hdr.ip.version,
-                    hdr.ip.ihl,
-                    hdr.ip.tos,
-                    hdr.ip.totalLen,
-                    hdr.ip.identification,
-                    hdr.ip.flags,
-                    hdr.ip.fragOffset,
-                    hdr.ip.ttl,
-                    hdr.ip.protocol,
-                    hdr.ip.srcAddr,
-                    hdr.ip.dstAddr 
+                    hdr.ipv4.version,
+                    hdr.ipv4.ihl,
+                    hdr.ipv4.tos,
+                    hdr.ipv4.totalLen,
+                    hdr.ipv4.identification,
+                    hdr.ipv4.flags,
+                    hdr.ipv4.fragOffset,
+                    hdr.ipv4.ttl,
+                    hdr.ipv4.protocol,
+                    hdr.ipv4.srcAddr,
+                    hdr.ipv4.dstAddr 
                 },
-                hdr.ip.hdrChecksum,
+                hdr.ipv4.hdrChecksum,
                 HashAlgorithm.csum16);
         }
 }
@@ -339,11 +280,11 @@ control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
 ***********************  D E P A R S E R  *******************************
 *************************************************************************/
 
-control MyDeparser(packet_out packet, in headers hdr) {
+control MyDeparser(packet_out packet, in headers_t hdr) {
     apply {
         packet.emit(hdr.ethernet); 
-        packet.emit(hdr.ip);
-        packet.emit(hdr.ip6);
+        packet.emit(hdr.ipv4);
+        packet.emit(hdr.ipv6);
 	    packet.emit(hdr.tcp_udp);
     }
 }

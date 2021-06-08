@@ -1,10 +1,6 @@
 #include <core.p4>
 #include <v1model.p4>
-
-#define IPV4_TYPE 0x0800
-#define IPV6_TYPE 0x86DD
-#define TCP_TYPE 6
-#define UDP_TYPE 17
+#include "headers.p4"
 
 #define SRC_ADDR_FIELD 0
 #define DST_ADDR_FIELD 1
@@ -26,55 +22,6 @@ To match on entry in each level, the data will have a prefix that is the "tree n
 A will be the root node, B is node 0 in level 1. C is node 1 in level 1. B and C may match on different features. 
 There are two entries at level0: one goes to B and one goes to C. Here, the entry for B will trigger an action that extract the feature B wants.
 */
-typedef bit<48> EthernetAddress;
-typedef bit<32> IPv4Address;
-typedef bit<128> IPv6Address;
-
-header ethernet_t {
-    EthernetAddress dst_addr;
-    EthernetAddress src_addr;
-    bit<16>         ether_type;
-}
-
-//IPv6 header
-header ipv4_t {
-    bit<4>      version;
-    bit<4>      ihl;
-    bit<8>      diffserv;
-    bit<16>     total_len;
-    bit<16>     identification;
-    bit<3>      flags;
-    bit<13>     frag_offset;
-    bit<8>      ttl;
-    bit<8>      protocol;
-    bit<16>     hdr_checksum;
-    IPv4Address src_addr;
-    IPv4Address dst_addr;
-}
-
-//IPv6 header
-header ipv6_t{
-  bit<4> version;
-  bit<8> trafficClass;
-  bit<20> flowLabel;
-  bit<16> payloadLen;
-  bit<8> nxt;
-  bit<8> hopLimit;
-  IPv6Address srcAddr;
-  IPv6Address dstAddr;
-}
-
-header TCP_UDP_t {
-    bit<16> srcPort;
-    bit<16> dstPort;
-}
-
-struct headers_t {
-    ethernet_t ethernet;
-    ipv4_t     ipv4;
-    ipv6_t     ipv6;
-    TCP_UDP_t tcp_udp;
-}
 
 struct metadata_t {
     bit<16> match_node;
@@ -94,7 +41,7 @@ parser my_parser(packet_in packet,
 {
     state start {
         packet.extract(hd.ethernet);
-        transition select(hd.ethernet.ether_type) {
+        transition select(hd.ethernet.etherType) {
             IPV4_TYPE:  parse_ipv4;
             IPV6_TYPE:  parse_ipv6;
             default: accept;
@@ -150,16 +97,16 @@ control my_compute_checksum(inout headers_t hdr,
 	    hdr.ipv4.isValid(),
             { hdr.ipv4.version,
 	          hdr.ipv4.ihl,
-              hdr.ipv4.diffserv,
-              hdr.ipv4.total_len,
+              hdr.ipv4.tos,
+              hdr.ipv4.totalLen,
               hdr.ipv4.identification,
               hdr.ipv4.flags,
-              hdr.ipv4.frag_offset,
+              hdr.ipv4.fragOffset,
               hdr.ipv4.ttl,
               hdr.ipv4.protocol,
-              hdr.ipv4.src_addr,
-              hdr.ipv4.dst_addr },
-            hdr.ipv4.hdr_checksum,
+              hdr.ipv4.srcAddr,
+              hdr.ipv4.dstAddr },
+            hdr.ipv4.hdrChecksum,
             HashAlgorithm.csum16);
     }
 }
@@ -186,26 +133,26 @@ control my_ingress(inout headers_t hdr,
         meta.match_node=nodeId;
 
         meta.match_key1 =    
-            (field1 == SRC_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.src_addr : 0) |
+            (field1 == SRC_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.srcAddr : 0) |
             (field1 == SRC_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.srcAddr : 0)  |
-            (field1 == DST_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.dst_addr : 0) |
+            (field1 == DST_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.dstAddr : 0) |
             (field1 == DST_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.dstAddr : 0)  |
             (field1 == SRC_PORT_FIELD ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
             (field1 == DST_PORT_FIELD ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
             (field1 == FRAME_LEN_FIELD ? (bit<32>) standard_metadata.packet_length : 0) |
-            (field1 == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.ether_type : 0) |
+            (field1 == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.etherType : 0) |
             (field1 == IP_PROTO_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.protocol : 0) |
             (field1 == IP_PROTO_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.nxt : 0);
         
         meta.match_key2 =    
-            (field2 == SRC_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.src_addr : 0) |
+            (field2 == SRC_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.srcAddr : 0) |
             (field2 == SRC_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.srcAddr : 0)  |
-            (field2 == DST_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.dst_addr : 0) |
+            (field2 == DST_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.dstAddr : 0) |
             (field2 == DST_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.dstAddr : 0)  |
             (field2 == SRC_PORT_FIELD ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
             (field2 == DST_PORT_FIELD ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
             (field2 == FRAME_LEN_FIELD ? (bit<32>) standard_metadata.packet_length : 0) |
-            (field2 == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.ether_type : 0) |
+            (field2 == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.etherType : 0) |
             (field2 == IP_PROTO_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.protocol : 0) |
             (field2 == IP_PROTO_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.nxt : 0);
 
