@@ -40,13 +40,9 @@ parser = argparse.ArgumentParser()
 
 # Add argument
 parser.add_argument('-i', required=True, help='path to training dataset')
-#parser.add_argument('-o', required=True, help='path to outputfile')
-#parser.add_argument('-t', required=True, help='path to test dataset')
 args = parser.parse_args()
 
 input = args.i
-#test = args.t
-#outputfile = args.o
 
 
 def convert_to_int(x: str):
@@ -55,84 +51,21 @@ def convert_to_int(x: str):
 
     return int(x, 16)
 
-
-def get_lineage(tree, feature_names, file):
-    frame_len = []
-    eth_type = []
-    ip_proto = []
-    ip_flags = []
-    ipv6_nxt = []
-    ipv6_opt = []
-    tcp_srcport = []
-    tcp_dstport = []
-    tcp_flags = []
-    udp_srcport = []
-    udp_dstport = []
-    left = tree.tree_.children_left
-    right = tree.tree_.children_right
-    threshold = tree.tree_.threshold
-    features = [feature_names[i] for i in tree.tree_.feature]
-    value = tree.tree_.value
-    le = '<='
-    g = '>'
-    # get ids of child nodes
-    idx = np.argwhere(left == -1)[:, 0]
-
-    def recurse(left, right, child, lineage=None):
-        if lineage is None:
-            lineage = [child]
-        if child in left:
-            parent = np.where(left == child)[0].item()
-            split = 'l'
-        else:
-            parent = np.where(right == child)[0].item()
-            split = 'r'
-
-        lineage.append((parent, split, threshold[parent], features[parent]))
-        if parent == 0:
-            lineage.reverse()
-            return lineage
-        else:
-            return recurse(left, right, parent, lineage)
-
-    for j, child in enumerate(idx):
-        clause = ' when '
-        for node in recurse(left, right, child):
-            if len(str(node)) < 3:
-                continue
-            i = node
-
-            if i[1] == 'l':
-                sign = le
-            else:
-                sign = g
-            clause = clause + i[3] + sign + str(i[2]) + ' and '
-
-        a = list(value[node][0])
-        ind = a.index(max(a))
-        clause = clause[:-4] + ' then ' + str(ind)
-        file.write(clause)
-        file.write(";\n")
-
-
 Set1 = pd.read_csv(input)
 Set1['eth_type'] = Set1['eth_type'].apply(convert_to_int)
 Set1['ip_flags'] = Set1['eth_type'].apply(convert_to_int)
 Set1['tcp_flags'] = Set1['eth_type'].apply(convert_to_int)
+Set1.insert(6, 'srcport', Set1[['tcp_srcport', 'udp_srcport']].max(axis=1))
+Set1.insert(7, 'dstport', Set1[['tcp_dstport', 'udp_dstport']].max(axis=1))
+Set1 = Set1.drop(columns=['tcp_srcport', 'udp_srcport', 'tcp_dstport', 'udp_dstport', 'ipv6_opt'])
+print(Set1.columns)
 
 Set = Set1.values.tolist()
-X = [i[0:10] for i in Set]
-Y = [i[11] for i in Set]
+X = [i[0:8] for i in Set]
+Y = [i[8] for i in Set]
 class_names = ['smart-static', 'sensor', 'audio', 'video', 'else']
-feature_names = ['frame_len', 'eth_type', 'ip_proto', 'ip_flags', 'ipv6_nxt', 'ipv6_opt', 'tcp_srcport', 'tcp_dstport',
-                 'tcp_flags', 'udp_srcport', 'udp_dstport']
-
-# debug = open("debug.txt","w+")
-# debug.write("Y = ")
-# debug.write(str(Y))
-# debug.write(";\n")
-# debug.close()
-
+feature_names = ['frame_len', 'eth_type', 'ip_proto', 'ip_flags', 'ipv6_nxt', 'srcport',
+                 'dstport', 'tcp_flags']
 
 # prepare training and testing set
 X = np.array(X)
@@ -145,34 +78,13 @@ Y = np.array(Y)
 dt = DecisionTreeClassifier(max_depth=5)
 dt.fit(X, Y)
 Predict_Y = dt.predict(X)
-#print(accuracy_score(Y, Predict_Y))
-# print("\tBrier: %1.3f" % (clf_score))
-#print("\tPrecision: %1.3f" % precision_score(Y, Predict_Y, average='weighted'))
-#print("\tRecall: %1.3f" % recall_score(Y, Predict_Y, average='weighted'))
-#print("\tF1: %1.3f\n" % f1_score(Y, Predict_Y, average='weighted'))
+print(np.mean(Predict_Y == Y))
 
-# Test set
-#Set2 = pd.read_csv(test)
-#Set2['eth_type'] = Set2['eth_type'].apply(convert_to_int)
-#Set2['ip_flags'] = Set2['eth_type'].apply(convert_to_int)
-#Set2['tcp_flags'] = Set2['eth_type'].apply(convert_to_int)
-#Set_t = Set2.values.tolist()
-#Xt = [i[0:10] for i in Set_t]
-#Yt = [i[11] for i in Set_t]
-
-#Predict_Yt = dt.predict(Xt)
 fig = plt.gcf()
 fig.set_size_inches(35.5, 20.5)
 tree.plot_tree(dt, fontsize=10)
 
 plt.show()
-#print(accuracy_score(Yt, Predict_Yt))
-# print("\tBrier: %1.3f" % (clf_score))
-#print("\tPrecision: %1.3f" % precision_score(Yt, Predict_Yt, average='weighted'))
-#print("\tRecall: %1.3f" % recall_score(Yt, Predict_Yt, average='weighted'))
-#print("\tF1: %1.3f\n" % f1_score(Yt, Predict_Yt, average='weighted'))
-
-#print(confusion_matrix(Yt, Predict_Yt))
 
 # output
 clf = dt
@@ -205,8 +117,8 @@ while len(stack) > 0:
         node_parent[children_left[node_id]] = node_id
         node_parent[children_right[node_id]] = node_id
         f = feature_names[feature[node_id]]
-        node_parentRangeStr[children_left[node_id]] = f"{f} <= {threshold[node_id]}"
-        node_parentRangeStr[children_right[node_id]] = f"{f} > {threshold[node_id]}"
+        node_parentRangeStr[children_left[node_id]] = f"0->{np.floor(threshold[node_id])}"
+        node_parentRangeStr[children_right[node_id]] = f"{np.ceil(threshold[node_id])}=>0xFFFFFFFF"
     else:
         is_leaves[node_id] = True
 
@@ -219,7 +131,11 @@ for i in range(n_nodes):
             node=i,
             parent=node_parent[i],
             value=class_names[np.argmax(value[i])]))"""
-        print(f"node={i},depth={node_depth[i]},parent={node_parent[i]},class={class_names[np.argmax(value[i])]},ParentNodeFeatureRange={node_parentRangeStr[i]}")
+        #print(
+        #    f"node={i},depth={node_depth[i]},parent={node_parent[i]},class={class_names[np.argmax(value[i])]},ParentNodeFeatureRange={node_parentRangeStr[i]}")
+        print(
+            f"table_add dt_level{node_depth[i]} action_for_class_{class_names[np.argmax(value[i])]} {node_parent[i]} {node_parentRangeStr[i]} => class={np.argmax(value[i])} 0"
+        )
     else:
         """print("{space}node={node} is a split node: "
               "go to node {left} if X[:, {feature}] <= {threshold} "
@@ -231,4 +147,8 @@ for i in range(n_nodes):
             threshold=threshold[i],
             right=children_right[i],
             parent=node_parent[i]))"""
-        print(f"node={i},depth={node_depth[i]},parent={node_parent[i]},featureCurrentNode={feature_names[feature[i]]},ParentNodeFeatureRange={node_parentRangeStr[i]}")
+        #print(
+        #    f"node={i},depth={node_depth[i]},parent={node_parent[i]},featureCurrentNode={feature_names[feature[i]]},ParentNodeFeatureRange={node_parentRangeStr[i]}")
+        print(
+            f"table_add dt_level{node_depth[i]} to_next_level {node_parent[i]} {node_parentRangeStr[i]} => {i} {feature[i]} 0"
+        )
