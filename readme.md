@@ -14,6 +14,7 @@
 - test_config_hyper.sh: the test table configuration for `tree-hyper.p4` - should be supplied by training script. 
 - train_dump_decision_tree.py: the training script that dumps each decision node. 
 - iisy_decision_tree.p4: the IIsy decision tree data plane, refitted from the NetFPGA version.
+- IIsy_Data_Processing.ipynb: the python notebook to pre-process the dataset. 
 
 ### Versions:
 We currently have 3 versions of p4 programs:
@@ -36,3 +37,14 @@ We currently have 3 versions of p4 programs:
 - `make docker-stop`: stop and remove the docker instance
 - `make train`: run the training script
 
+## Basic Usage
+
+To download and build the input data, use `IIsy_Data_Processing.ipynb`. The end result is placed in `csv_file.zip`. 
+
+The basic usage script is written in the make file. To run the basic decision tree program:
+1. Build the docker image with `make docker-build`.
+2. Run the docker instance in the background with `make docker-run`.
+3. Start a shell in the docker instance with `make docker-bash`.
+4. In the docker shell, run `make` to compile the p4 programs. 
+5. To run the p4 program in the mininet, run `make run` in the docker shell. 
+6. To stop the docker instance, run `make docker-stop`.
