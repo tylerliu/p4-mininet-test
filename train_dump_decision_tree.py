@@ -51,20 +51,23 @@ def convert_to_int(x: str):
 
     return int(x, 16)
 
+
 Set1 = pd.read_csv(input)
 Set1['eth_type'] = Set1['eth_type'].apply(convert_to_int)
 Set1['ip_flags'] = Set1['eth_type'].apply(convert_to_int)
 Set1['tcp_flags'] = Set1['eth_type'].apply(convert_to_int)
+Set1['ip_proto'] = Set1[['ip_proto', 'ipv6_nxt']].max(axis=1)
 Set1.insert(6, 'srcport', Set1[['tcp_srcport', 'udp_srcport']].max(axis=1))
 Set1.insert(7, 'dstport', Set1[['tcp_dstport', 'udp_dstport']].max(axis=1))
-Set1 = Set1.drop(columns=['tcp_srcport', 'udp_srcport', 'tcp_dstport', 'udp_dstport', 'ipv6_opt'])
+Set1 = Set1.drop(
+    columns=['tcp_srcport', 'udp_srcport', 'tcp_dstport', 'udp_dstport', 'ipv6_opt', 'tcp_flags', 'ipv6_nxt'])
 print(Set1.columns)
 
 Set = Set1.values.tolist()
-X = [i[0:8] for i in Set]
-Y = [i[8] for i in Set]
+X = [i[0:6] for i in Set]
+Y = [i[6] for i in Set]
 class_names = ['smart-static', 'sensor', 'audio', 'video', 'else']
-feature_names = ['frame_len', 'eth_type', 'ip_proto', 'ip_flags', 'ipv6_nxt', 'srcport',
+feature_names = ['frame_len', 'eth_type', 'ip_proto', 'ip_flags', 'srcport',
                  'dstport', 'tcp_flags']
 
 # prepare training and testing set
@@ -131,7 +134,7 @@ for i in range(n_nodes):
             node=i,
             parent=node_parent[i],
             value=class_names[np.argmax(value[i])]))"""
-        #print(
+        # print(
         #    f"node={i},depth={node_depth[i]},parent={node_parent[i]},class={class_names[np.argmax(value[i])]},ParentNodeFeatureRange={node_parentRangeStr[i]}")
         print(
             f"table_add dt_level{node_depth[i]} action_for_class_{class_names[np.argmax(value[i])]} {node_parent[i]} {node_parentRangeStr[i]} => class={np.argmax(value[i])} 0"
@@ -147,9 +150,9 @@ for i in range(n_nodes):
             threshold=threshold[i],
             right=children_right[i],
             parent=node_parent[i]))"""
-        #print(
+        # print(
         #    f"node={i},depth={node_depth[i]},parent={node_parent[i]},featureCurrentNode={feature_names[feature[i]]},ParentNodeFeatureRange={node_parentRangeStr[i]}")
-        if (node_depth[i]==0):
+        if (node_depth[i] == 0):
             print(
                 f"table_set_default dt_level{node_depth[i]} to_next_level => {i} {feature[i]} 0"
             )
