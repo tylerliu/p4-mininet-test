@@ -196,6 +196,18 @@ control my_ingress(inout headers_t hdr,
         log_msg("field = {}, match_node = {}, match_key = {}", {field, meta.match_node, meta.match_key});
     }
 
+    table ipv4_match {
+        key = {
+            hdr.ipv4.dst_addr: lpm;
+        }
+        actions = {
+            drop_action;
+            to_port_action;
+        }
+        size = 1024;
+        default_action = drop_action;
+    }
+
     table dt_level0{
 	    key = {}
         actions = {
@@ -274,6 +286,8 @@ control my_ingress(inout headers_t hdr,
     }
 
     apply {
+        ipv4_match.apply();
+        if (dropped) return;
         if (hdr.ipv4.isValid()) hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
         if (hdr.ipv6.isValid()) hdr.ipv6.hopLimit = hdr.ipv6.hopLimit - 1;
         dt_level0.apply();
