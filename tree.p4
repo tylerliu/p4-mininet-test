@@ -2,13 +2,13 @@
 #include <v1model.p4>
 #include "headers.p4"
 
-#define SRC_ADDR_FIELD 0
-#define DST_ADDR_FIELD 1
-#define SRC_PORT_FIELD 2
-#define DST_PORT_FIELD 3
-#define FRAME_LEN_FIELD 4
-#define ETH_TYPE_FIELD 5
-#define IP_PROTO_FIELD 6
+#define FRAME_LEN_FIELD 0
+#define ETH_TYPE_FIELD 1
+#define IP_PROTO_FIELD 2
+#define IP_FLAGS_FIELD 3
+#define SRC_PORT_FIELD 4
+#define DST_PORT_FIELD 5
+
 
 /*
 decision tree table entry example
@@ -128,22 +128,35 @@ control my_ingress(inout headers_t hdr,
         dtFinished = true;
     }
 
+    action to_port_action_routing(bit<9> port){
+        standard_metadata.egress_spec = port;
+    }
+
     action to_next_level(bit<16> nodeId, bit<5>field ){
         meta.match_node=nodeId;
 
         meta.match_key =    
-            (field == SRC_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.srcAddr : 0) |
-            (field == SRC_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.srcAddr : 0)  |
-            (field == DST_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.dstAddr : 0) |
-            (field == DST_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.dstAddr : 0)  |
             (field == SRC_PORT_FIELD ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
             (field == DST_PORT_FIELD ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
             (field == FRAME_LEN_FIELD ? (bit<32>) standard_metadata.packet_length : 0) |
             (field == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.etherType : 0) |
+            (field == IP_FLAGS_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.flags : 0) |
             (field == IP_PROTO_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.protocol : 0) |
             (field == IP_PROTO_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.nxt : 0);
 
-        log_msg("field = {}, match_node = {}, match_key = {}", {field, meta.match_node, meta.match_key});
+        log_msg("match_node = {}, field = {}, match_key = {}", {meta.match_node, field, meta.match_key});
+    }
+
+    table ipv4_match {
+        key = {
+            hdr.ipv4.dstAddr: lpm;
+        }
+        actions = {
+            drop_action;
+            to_port_action_routing;
+        }
+        size = 1024;
+        default_action = drop_action;
     }
 
     table dt_level0{
@@ -224,6 +237,8 @@ control my_ingress(inout headers_t hdr,
     }
 
     apply {
+        ipv4_match.apply();
+        if (dropped) return;
         if (hdr.ipv4.isValid()) hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
         if (hdr.ipv6.isValid()) hdr.ipv6.hopLimit = hdr.ipv6.hopLimit - 1;
         dt_level0.apply();
