@@ -181,6 +181,10 @@ control my_ingress(inout headers_t hdr,
         dtFinished = true;
     }
 
+    action to_port_action_routing(bit<9> port){
+        standard_metadata.egress_spec = port;
+    }
+
     action to_next_level(bit<16> nodeId, bit<5>field ){
         meta.match_node=nodeId;
 
@@ -202,7 +206,7 @@ control my_ingress(inout headers_t hdr,
         }
         actions = {
             drop_action;
-            to_port_action;
+            to_port_action_routing;
         }
         size = 1024;
         default_action = drop_action;
