@@ -6,13 +6,13 @@
 #define TCP_TYPE 6
 #define UDP_TYPE 17
 
-#define SRC_ADDR_FIELD 0
-#define DST_ADDR_FIELD 1
-#define SRC_PORT_FIELD 2
-#define DST_PORT_FIELD 3
-#define FRAME_LEN_FIELD 4
-#define ETH_TYPE_FIELD 5
-#define IP_PROTO_FIELD 6
+#define FRAME_LEN_FIELD 0
+#define ETH_TYPE_FIELD 1
+#define IP_PROTO_FIELD 2
+#define IP_FLAGS_FIELD 3
+#define SRC_PORT_FIELD 4
+#define DST_PORT_FIELD 5
+
 
 /*
 decision tree table entry example
@@ -185,14 +185,11 @@ control my_ingress(inout headers_t hdr,
         meta.match_node=nodeId;
 
         meta.match_key =    
-            (field == SRC_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.src_addr : 0) |
-            (field == SRC_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.srcAddr : 0)  |
-            (field == DST_ADDR_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.dst_addr : 0) |
-            (field == DST_ADDR_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.dstAddr : 0)  |
             (field == SRC_PORT_FIELD ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
             (field == DST_PORT_FIELD ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
             (field == FRAME_LEN_FIELD ? (bit<32>) standard_metadata.packet_length : 0) |
             (field == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.ether_type : 0) |
+            (field == IP_FLAGS_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.flags : 0) |
             (field == IP_PROTO_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.protocol : 0) |
             (field == IP_PROTO_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.nxt : 0);
 
