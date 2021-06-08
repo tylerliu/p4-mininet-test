@@ -149,6 +149,11 @@ for i in range(n_nodes):
             parent=node_parent[i]))"""
         #print(
         #    f"node={i},depth={node_depth[i]},parent={node_parent[i]},featureCurrentNode={feature_names[feature[i]]},ParentNodeFeatureRange={node_parentRangeStr[i]}")
+        if (node_depth[i]==0):
+            print(
+                f"table_set_default dt_level{node_depth[i]} to_next_level => {i} {feature[i]} 0"
+            )
+            continue
         print(
             f"table_add dt_level{node_depth[i]} to_next_level {node_parent[i]} {node_parentRangeStr[i]} => {i} {feature[i]} 0"
         )
