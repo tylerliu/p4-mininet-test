@@ -123,13 +123,16 @@ control my_ingress(inout headers_t hdr,
         dtFinished = true;
     }
 
-    action to_port_action(bit<9> port){
-        standard_metadata.egress_spec = port;
+    action set_class(bit<8> label){
+        if (hdr.ipv4.isValid()) hdr.ipv4.tos = label;
+        if (hdr.ipv6.isValid()) hdr.ipv6.trafficClass = label;
         dtFinished = true;
     }
 
-    action to_port_action_routing(bit<9> port){
+    action to_port_action(bit<9> port){
         standard_metadata.egress_spec = port;
+        if (hdr.ipv4.isValid()) hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+        if (hdr.ipv6.isValid()) hdr.ipv6.hopLimit = hdr.ipv6.hopLimit - 1;
     }
 
     action to_next_level(bit<16> nodeId, bit<5>field ){
@@ -153,7 +156,19 @@ control my_ingress(inout headers_t hdr,
         }
         actions = {
             drop_action;
-            to_port_action_routing;
+            to_port_action;
+        }
+        size = 1024;
+        default_action = drop_action;
+    }
+
+    table ipv6_match {
+        key = {
+            hdr.ipv6.dstAddr: lpm;
+        }
+        actions = {
+            drop_action;
+            to_port_action;
         }
         size = 1024;
         default_action = drop_action;
@@ -163,7 +178,7 @@ control my_ingress(inout headers_t hdr,
 	    key = {}
         actions = {
             drop_action;
-            to_port_action;
+            set_class;
             to_next_level;
         }
         default_action = drop_action;
@@ -176,7 +191,7 @@ control my_ingress(inout headers_t hdr,
         }
         actions = {
             drop_action;
-            to_port_action;
+            set_class;
             to_next_level;
         }
         size=4;
@@ -190,7 +205,7 @@ control my_ingress(inout headers_t hdr,
         }
         actions = {
             drop_action;
-            to_port_action;
+            set_class;
             to_next_level;
         }
         size=16;
@@ -204,7 +219,7 @@ control my_ingress(inout headers_t hdr,
         }
         actions = {
             drop_action;
-            to_port_action;
+            set_class;
             to_next_level;
         }
         default_action = drop_action;
@@ -217,7 +232,7 @@ control my_ingress(inout headers_t hdr,
         }
         actions = {
             drop_action;
-            to_port_action;
+            set_class;
             to_next_level;
         }
         default_action = drop_action;
@@ -230,17 +245,17 @@ control my_ingress(inout headers_t hdr,
         }
         actions = {
             drop_action;
-            to_port_action;
+            set_class;
             to_next_level;
         }
         default_action = drop_action;
     }
 
     apply {
-        ipv4_match.apply();
+        if (hdr.ipv4.isValid()) ipv4_match.apply();
+        if (hdr.ipv6.isValid()) ipv6_match.apply();
         if (dropped) return;
-        if (hdr.ipv4.isValid()) hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
-        if (hdr.ipv6.isValid()) hdr.ipv6.hopLimit = hdr.ipv6.hopLimit - 1;
+        
         dt_level0.apply();
         if (dtFinished) return;
         dt_level1.apply();

@@ -101,13 +101,22 @@ control MyIngress(inout headers_t hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
-    action set_output_port(port_t port) {
-        standard_metadata.egress_spec = port;
+    bool dropped = false;
+
+    action drop_action() {
+        mark_to_drop(standard_metadata);
+        dropped = true;
     }
 
-    
-    action set_default_port (){
-        standard_metadata.egress_spec = 0x1;
+    action set_class(bit<8> label){
+        if (hdr.ipv4.isValid()) hdr.ipv4.tos = label;
+        if (hdr.ipv6.isValid()) hdr.ipv6.trafficClass = label;
+    }
+
+    action to_port_action(bit<9> port){
+        standard_metadata.egress_spec = port;
+        if (hdr.ipv4.isValid()) hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+        if (hdr.ipv6.isValid()) hdr.ipv6.hopLimit = hdr.ipv6.hopLimit - 1;
     }
 
  
@@ -129,6 +138,30 @@ control MyIngress(inout headers_t hdr,
 
     action set_dstport_code(bit<5> code){
         meta.dstport_code = code;
+    }
+
+    table ipv4_match {
+        key = {
+            hdr.ipv4.dstAddr: lpm;
+        }
+        actions = {
+            drop_action;
+            to_port_action;
+        }
+        size = 1024;
+        default_action = drop_action;
+    }
+
+    table ipv6_match {
+        key = {
+            hdr.ipv6.dstAddr: lpm;
+        }
+        actions = {
+            drop_action;
+            to_port_action;
+        }
+        size = 1024;
+        default_action = drop_action;
     }
 
 
@@ -190,7 +223,7 @@ control MyIngress(inout headers_t hdr,
 
         actions = {
             set_dstport_code;
-	    NoAction;
+	        NoAction;
         }
         size = 63;
         default_action = NoAction;
@@ -201,15 +234,12 @@ control MyIngress(inout headers_t hdr,
         key = { meta.pkt_len_code++meta.eth_type_code++meta.ip_proto_code++meta.srcport_code++meta.dstport_code:exact @name("code"); }
 
         actions = {
-            set_output_port;
-            set_default_port;
+            drop_action;
+            set_class;
         }
         size = 64;
-        default_action = set_default_port;
+        default_action = drop_action;
     }
-
-
-
 
     apply {
 
@@ -218,6 +248,10 @@ control MyIngress(inout headers_t hdr,
         meta.eth_type_code=0;
         meta.srcport_code=0;
         meta.dstport_code=0;
+
+        if (hdr.ipv4.isValid()) ipv4_match.apply();
+        if (hdr.ipv6.isValid()) ipv6_match.apply();
+        if (dropped) return;
        
         lookup_len.apply();
         
@@ -233,11 +267,9 @@ control MyIngress(inout headers_t hdr,
             lookup_srcport.apply();
             lookup_dstport.apply();
         }
-  
-        if (!lookup_code.apply().hit) {
-            mark_to_drop(standard_metadata);
-        }
-      }
+
+        lookup_code.apply();
+    }
 }
 
 /*************************************************************************
