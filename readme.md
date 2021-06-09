@@ -3,6 +3,11 @@
 ## Required Packages for Training:
 - scikit-learn
 
+## Required Packages for running docker on mac:
+- Xquartz
+  - Make sure xhost is accessible from the terminal
+  - also make sure xquartz allows incoming network connection
+
 ## Files:
 - mininet-run: script for running mininet simulation with p4
 - csv_files.zip: the training feature data
