@@ -29,7 +29,7 @@ def handle_pkt(pkt, packetNum):
         print("ipv6_nxt: " + str(pkt[IPv6].nh)) 
         if IPv6ExtHdrHopByHop in pkt:
             print("ipv6_opt: " + str(pkt[IPv6ExtHdrHopByHop].options[0].jumboplen))
-        print("GT: " + str(pkt[IPv6].hlim))
+        print("GT: " + str(pkt[IPv6].tc))
     else:
         print("frame_len: " + str(pkt.len))
         print("eth_type: " + str(hex(pkt[Ether].type)))
@@ -42,7 +42,7 @@ def handle_pkt(pkt, packetNum):
         if UDP in pkt:
             print("udp_srcport: " + str(pkt[UDP].sport))
             print("udp_dstport: " + str(pkt[UDP].dport))
-        print("GT: " + str(pkt[IP].id))
+        print("GT: " + str(pkt[IP].tos))
 
     sys.stdout.flush()
 
