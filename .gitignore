@@ -1,3 +1,6 @@
 csv_files/
 *.csv
 *.p4rt
+*.json
+*.p4i
+*.txt

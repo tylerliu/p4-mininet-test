@@ -18,8 +18,7 @@ run: tree.p4i test_config_tree.sh
 	./mininet-run/single_switch_mininet.py  \
 	--behavioral-exe simple_switch \
 	--json tree.json \
-        --log-file switch_log_tree.txt \
-	--switch-config test_config_tree.sh
+        --log-file switch_log_tree.txt
 
 run-hyper: tree-hyper.p4i test_config_hyper.sh
 	./mininet-run/single_switch_mininet.py  \
