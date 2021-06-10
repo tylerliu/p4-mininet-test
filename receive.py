@@ -8,7 +8,7 @@ from scapy.all import Packet, IPOption
 from scapy.all import ShortField, IntField, LongField, BitField, FieldListField, FieldLenField
 from scapy.all import Ether, IP, TCP, UDP, Raw, IPv6, IPv6ExtHdrHopByHop
 from scapy.layers.inet import _IPOption_HDR
-from myTunnel_header import MyTunnel
+
 
 def get_if():
     ifs=get_if_list()
@@ -22,39 +22,39 @@ def get_if():
         exit(1)
     return iface
 
-def handle_pkt(pkt):
-    # if MyTunnel in pkt or (TCP in pkt and pkt[TCP].dport == 1234):
-    print "got a packet"
-    # pkt.show2()
-    print("validate information:")
-    print("frame_len: " + str(pkt.len))
-    print("eth_type: " + str(hex(pkt[Ether].type)))
-    print("ip_proto: " + str(pkt[IP].proto))
-    # TODO
-    print("ip_flags(failed to set, need debug): " + str(hex(pkt[IP].flags)))
+def handle_pkt(pkt, packetNum):
     if IPv6 in pkt:
-        print("ipv6_nxt: " + str(pkt[IPv6].nh))
-    if IPv6ExtHdrHopByHop in pkt:
-        print("ipv6_opt: " + str(pkt[IPv6ExtHdrHopByHop].options))
-    if TCP in pkt:
-        print("tcp_srcport: " + str(pkt[TCP].sport))
-        print("tcp_dstport: " + str(pkt[TCP].dport))
-        print("tcp_flags: " + str(hex(pkt[TCP].flags)))
-    if UDP in pkt:
-        print("udp_srcport: " + str(pkt[UDP].sport))
-        print("udp_dstport: " + str(pkt[UDP].dport))
-#        hexdump(pkt)
-#        print "len(pkt) = ", len(pkt)
+        print("frame_len: " + str(pkt[IPv6].plen))
+        print("eth_type: " + str(hex(pkt[Ether].type)))
+        print("ipv6_nxt: " + str(pkt[IPv6].nh)) 
+        if IPv6ExtHdrHopByHop in pkt:
+            print("ipv6_opt: " + str(pkt[IPv6ExtHdrHopByHop].options[0].jumboplen))
+        print("GT: " + str(pkt[IPv6].hlim))
+    else:
+        print("frame_len: " + str(pkt.len))
+        print("eth_type: " + str(hex(pkt[Ether].type)))
+        print("ip_proto: " + str(pkt[IP].proto))
+        print("ip_flags: " + str(hex(pkt[IP].flags)))
+        if TCP in pkt:
+            print("tcp_srcport: " + str(pkt[TCP].sport))
+            print("tcp_dstport: " + str(pkt[TCP].dport))
+            print("tcp_flags: " + str(hex(pkt[TCP].flags)))
+        if UDP in pkt:
+            print("udp_srcport: " + str(pkt[UDP].sport))
+            print("udp_dstport: " + str(pkt[UDP].dport))
+        print("GT: " + str(pkt[IP].id))
+
     sys.stdout.flush()
 
 
 def main():
     ifaces = filter(lambda i: 'eth' in i, os.listdir('/sys/class/net/'))
     iface = ifaces[0]
+    packetNum = 0
     print "sniffing on %s" % iface
     sys.stdout.flush()
     sniff(iface = iface,
-          prn = lambda x: handle_pkt(x))
+          prn = lambda x: handle_pkt(x, ++packetNum))
 
 if __name__ == '__main__':
     main()
