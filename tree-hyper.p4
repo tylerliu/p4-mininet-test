@@ -139,8 +139,8 @@ control my_ingress(inout headers_t hdr,
         meta.match_node=nodeId;
         
         meta.match_key1 =    
-            (field1 == SRC_PORT_FIELD ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
-            (field1 == DST_PORT_FIELD ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
+            (field1 == SRC_PORT_FIELD && hdr.tcp_udp.isValid() ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
+            (field1 == DST_PORT_FIELD && hdr.tcp_udp.isValid() ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
             (field1 == FRAME_LEN_FIELD ? (bit<32>) standard_metadata.packet_length : 0) |
             (field1 == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.etherType : 0) |
             (field1 == IP_FLAGS_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.flags : 0) |
@@ -148,8 +148,8 @@ control my_ingress(inout headers_t hdr,
             (field1 == IP_PROTO_FIELD && hdr.ipv6.isValid() ? (bit<32>) hdr.ipv6.nxt : 0);
         
         meta.match_key2 =    
-            (field2 == SRC_PORT_FIELD ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
-            (field2 == DST_PORT_FIELD ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
+            (field2 == SRC_PORT_FIELD && hdr.tcp_udp.isValid() ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
+            (field2 == DST_PORT_FIELD && hdr.tcp_udp.isValid() ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
             (field2 == FRAME_LEN_FIELD ? (bit<32>) standard_metadata.packet_length : 0) |
             (field2 == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.etherType : 0) |
             (field2 == IP_FLAGS_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.flags : 0) |

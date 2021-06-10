@@ -139,8 +139,8 @@ control my_ingress(inout headers_t hdr,
         meta.match_node=nodeId;
 
         meta.match_key =    
-            (field == SRC_PORT_FIELD ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
-            (field == DST_PORT_FIELD ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
+            (field == SRC_PORT_FIELD && hdr.tcp_udp.isValid() ? (bit<32>) hdr.tcp_udp.srcPort : 0) |
+            (field == DST_PORT_FIELD && hdr.tcp_udp.isValid() ? (bit<32>) hdr.tcp_udp.dstPort : 0) |
             (field == FRAME_LEN_FIELD ? (bit<32>) standard_metadata.packet_length : 0) |
             (field == ETH_TYPE_FIELD ? (bit<32>) hdr.ethernet.etherType : 0) |
             (field == IP_FLAGS_FIELD && hdr.ipv4.isValid() ? (bit<32>) hdr.ipv4.flags : 0) |
