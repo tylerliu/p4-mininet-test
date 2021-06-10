@@ -25,6 +25,7 @@
 #
 ################################################################################# 
 
+import sys
 import numpy as np
 import pandas as pd
 import argparse
@@ -32,7 +33,6 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import *
 from matplotlib import pyplot as plt
 from sklearn.tree import export_graphviz
-import pydotplus
 
 from sklearn import tree
 
@@ -40,9 +40,12 @@ parser = argparse.ArgumentParser()
 
 # Add argument
 parser.add_argument('-i', required=True, help='path to training dataset')
+parser.add_argument('-o', default=sys.stdout, help='file to output the decision tree')
 args = parser.parse_args()
 
 input = args.i
+if args.o != sys.stdout:
+    outputFile = open(args.o, "w") 
 
 
 def convert_to_int(x: str):
@@ -73,8 +76,6 @@ feature_names = ['frame_len', 'eth_type', 'ip_proto', 'ip_flags', 'srcport',
 # prepare training and testing set
 X = np.array(X)
 Y = np.array(Y)
-
-# print(X)
 
 # decision tree fit
 
@@ -120,43 +121,55 @@ while len(stack) > 0:
         node_parent[children_left[node_id]] = node_id
         node_parent[children_right[node_id]] = node_id
         f = feature_names[feature[node_id]]
-        node_parentRangeStr[children_left[node_id]] = f"0->{np.floor(threshold[node_id])}"
-        node_parentRangeStr[children_right[node_id]] = f"{np.ceil(threshold[node_id])}=>0xFFFFFFFF"
     else:
         is_leaves[node_id] = True
 
 print("The binary tree structure has {n} nodes and has "
-      "the following tree structure:\n".format(n=n_nodes))
+      "the following tree structure:".format(n=n_nodes))
 for i in range(n_nodes):
     if is_leaves[i]:
-        """print("{space}node={node} is a leaf node. Parent = {parent}. value={value}。".format(
-            space=node_depth[i] * "\t",
-            node=i,
-            parent=node_parent[i],
-            value=class_names[np.argmax(value[i])]))"""
-        # print(
-        #    f"node={i},depth={node_depth[i]},parent={node_parent[i]},class={class_names[np.argmax(value[i])]},ParentNodeFeatureRange={node_parentRangeStr[i]}")
-        print(
-            f"table_add dt_level{node_depth[i]} action_for_class_{class_names[np.argmax(value[i])]} {node_parent[i]} {node_parentRangeStr[i]} => class={np.argmax(value[i])} 0"
-        )
+        print("node={node} type=leaf depth={depth} class={cls}".format(
+            depth=node_depth[i], node=i), file=outputFile, cls=class_names[np.argmax(value[i])])
     else:
-        """print("{space}node={node} is a split node: "
-              "go to node {left} if X[:, {feature}] <= {threshold} "
-              "else to node {right}. Parent={parent}.".format(
-            space=node_depth[i] * "\t",
-            node=i,
-            left=children_left[i],
-            feature=feature[i],
-            threshold=threshold[i],
-            right=children_right[i],
-            parent=node_parent[i]))"""
-        # print(
-        #    f"node={i},depth={node_depth[i]},parent={node_parent[i]},featureCurrentNode={feature_names[feature[i]]},ParentNodeFeatureRange={node_parentRangeStr[i]}")
-        if (node_depth[i] == 0):
-            print(
-                f"table_set_default dt_level{node_depth[i]} to_next_level => {i} {feature[i]} 0"
-            )
-            continue
-        print(
-            f"table_add dt_level{node_depth[i]} to_next_level {node_parent[i]} {node_parentRangeStr[i]} => {i} {feature[i]} 0"
-        )
+        print("node={node} type=split depth={depth} feature={feature} "
+              "threshold={threshold} left={left} right={right}".format(
+                  depth=node_depth[i],
+                  node=i,
+                  left=children_left[i],
+                  feature=feature_names[feature[i]],
+                  threshold=threshold[i],
+                  right=children_right[i]), file=outputFile)
+
+# for i in range(n_nodes):
+#     if is_leaves[i]:
+#         """print("{space}node={node} is a leaf node. Parent = {parent}. value={value}。".format(
+#             space=node_depth[i] * "\t",
+#             node=i,
+#             parent=node_parent[i],
+#             value=class_names[np.argmax(value[i])]))"""
+#         # print(
+#         #    f"node={i},depth={node_depth[i]},parent={node_parent[i]},class={class_names[np.argmax(value[i])]},ParentNodeFeatureRange={node_parentRangeStr[i]}")
+#         print(
+#             f"table_add dt_level{node_depth[i]} action_for_class_{class_names[np.argmax(value[i])]} {node_parent[i]} {node_parentRangeStr[i]} => class={np.argmax(value[i])} 0"
+#         )
+#     else:
+#         """print("{space}node={node} is a split node: "
+#               "go to node {left} if X[:, {feature}] <= {threshold} "
+#               "else to node {right}. Parent={parent}.".format(
+#             space=node_depth[i] * "\t",
+#             node=i,
+#             left=children_left[i],
+#             feature=feature[i],
+#             threshold=threshold[i],
+#             right=children_right[i],
+#             parent=node_parent[i]))"""
+#         # print(
+#         #    f"node={i},depth={node_depth[i]},parent={node_parent[i]},featureCurrentNode={feature_names[feature[i]]},ParentNodeFeatureRange={node_parentRangeStr[i]}")
+#         if (node_depth[i] == 0):
+#             print(
+#                 f"table_set_default dt_level{node_depth[i]} to_next_level => {i} {feature[i]} 0"
+#             )
+#             continue
+#         print(
+#             f"table_add dt_level{node_depth[i]} to_next_level {node_parent[i]} {node_parentRangeStr[i]} => {i} {feature[i]} 0"
+#         )
