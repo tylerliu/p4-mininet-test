@@ -41,7 +41,7 @@ docker-build: Dockerfile
 docker-run: 
 	xhost + $$(hostname)
 	docker run -d \
-	-e DISPLAY=$$(hostname):0 -v /tmp/.X11-unix:/tmp/.X11-unix \
+	-e DISPLAY=$$(hostname):0 \
 	--name $(DOCKER_NAME) --privileged p4-decision-tree
 
 docker-bash: 
