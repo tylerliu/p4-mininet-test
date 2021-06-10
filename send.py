@@ -48,10 +48,10 @@ def main():
             tcp_flags = int(row[8], 16)
             udp_srcport = int(row[9])
             udp_dstport = int(row[10])
-            message = int(row[11])
+            ground_truth = int(row[11])
 
             pkt = Ether(type=eth_type, src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
-            pkt = pkt /IP(dst=addr, proto=ip_proto, flags=ip_flags, len=frame_len, id=message)
+            pkt = pkt /IP(dst=addr, proto=ip_proto, flags=ip_flags, len=frame_len, id=ground_truth)
 
 
             if tcp_srcport != -1 and tcp_dstport != -1:
@@ -60,7 +60,7 @@ def main():
                 pkt = pkt / UDP(dport=udp_dstport, sport=udp_srcport)
             else:
                 if ipv6_nxt >= 0 and ipv6_nxt <= 255:
-                    pkt = Ether(type=eth_type, src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')/IPv6(src='::1', dst='::1', nh=ipv6_nxt, plen=frame_len, hlim=message)
+                    pkt = Ether(type=eth_type, src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')/IPv6(src='::1', dst='::1', nh=ipv6_nxt, plen=frame_len, hlim=ground_truth)
                     if ipv6_opt != -1:
                         jumbo = Jumbo(jumboplen = int(row[5]))
                         pkt = pkt / IPv6ExtHdrHopByHop(options=jumbo)
