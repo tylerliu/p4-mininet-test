@@ -1,7 +1,7 @@
 table_add ipv4_match to_port_action 10.0.0.0/24 => 1
 table_add ipv4_match to_port_action 10.0.1.0/24 => 2
-table_add ipv6_match to_port_action ::ffff:0a00:0000/120 => 1
-table_add ipv6_match to_port_action ::ffff:0a00:0100/120 => 2
+table_add ipv6_match to_port_action fe80::204:ff:fe00:0/64 => 1
+table_add ipv6_match to_port_action fe80::204:ff:fe00:1/64 => 2
 
 table_set_default dt_level0 to_next_level 1 6
 
