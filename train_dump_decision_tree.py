@@ -54,7 +54,7 @@ def convert_to_int(x: str):
 
 Set1 = pd.read_csv(input)
 Set1['eth_type'] = Set1['eth_type'].apply(convert_to_int)
-Set1['ip_flags'] = Set1['eth_type'].apply(convert_to_int)
+Set1['ip_flags'] = Set1['eth_type'].apply(convert_to_int) >> 8
 Set1['tcp_flags'] = Set1['eth_type'].apply(convert_to_int)
 Set1['ip_proto'] = Set1[['ip_proto', 'ipv6_nxt']].max(axis=1)
 Set1.insert(6, 'srcport', Set1[['tcp_srcport', 'udp_srcport']].max(axis=1))
@@ -68,7 +68,7 @@ X = [i[0:6] for i in Set]
 Y = [i[6] for i in Set]
 class_names = ['smart-static', 'sensor', 'audio', 'video', 'else']
 feature_names = ['frame_len', 'eth_type', 'ip_proto', 'ip_flags', 'srcport',
-                 'dstport', 'tcp_flags']
+                 'dstport']
 
 # prepare training and testing set
 X = np.array(X)
@@ -137,7 +137,7 @@ for i in range(n_nodes):
         # print(
         #    f"node={i},depth={node_depth[i]},parent={node_parent[i]},class={class_names[np.argmax(value[i])]},ParentNodeFeatureRange={node_parentRangeStr[i]}")
         print(
-            f"table_add dt_level{node_depth[i]} action_for_class_{class_names[np.argmax(value[i])]} {node_parent[i]} {node_parentRangeStr[i]} => class={np.argmax(value[i])} 0"
+            f"table_add dt_level{node_depth[i]} set_class {node_parent[i]} {node_parentRangeStr[i]} => {np.argmax(value[i])} 0"
         )
     else:
         """print("{space}node={node} is a split node: "
