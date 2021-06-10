@@ -28,7 +28,7 @@ run-hyper: tree-hyper.p4i test_config_hyper.sh
         --log-file switch_log_tree_hyper.txt \
 	--switch-config test_config_hyper.sh
 
-run-iisy: tree-hyper.p4i test_config_iisy.sh
+run-iisy: iisy_decision_tree.p4i test_config_iisy.sh
 	./mininet-run/single_switch_mininet.py  \
 	--behavioral-exe simple_switch \
 	--json iisy_decision_tree.json \

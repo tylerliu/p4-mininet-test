@@ -279,7 +279,9 @@ control MyIngress(inout headers_t hdr,
 control MyEgress(inout headers_t hdr,
                  inout metadata meta,
                  inout standard_metadata_t standard_metadata) {
-    apply {  }
+    apply {  
+        hdr.ethernet.dstAddr = 0xFFFFFFFFFFFF;
+    }
 }
 
 /*************************************************************************

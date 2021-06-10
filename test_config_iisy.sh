@@ -1,7 +1,7 @@
 table_add ipv4_match to_port_action 10.0.0.0/24 => 1
 table_add ipv4_match to_port_action 10.0.1.0/24 => 2
-table_add ipv6_match to_port_action ::ffff:0a00:0000/120 => 1
-table_add ipv6_match to_port_action ::ffff:0a00:0100/120 => 2
+table_add ipv6_match to_port_action fe80::204:ff:fe00:0/128 => 1
+table_add ipv6_match to_port_action fe80::204:ff:fe00:1/128 => 2
 
 table_add lookup_eth_type set_eth_type_code 0x0800&&&0xFFFF => 1 0
 table_add lookup_eth_type set_eth_type_code 0x0806&&&0xFFFF => 2 0
@@ -17,3 +17,4 @@ table_add lookup_code set_class 0x008800 => 2
 table_add lookup_code set_class 0x008400 => 3
 table_add lookup_code set_class 0x008401 => 4
 table_add lookup_code set_class 0x008801 => 5
+table_add lookup_code set_class 0x008000 => 6

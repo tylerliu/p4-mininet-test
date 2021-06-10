@@ -274,7 +274,9 @@ control my_egress(inout headers_t hdr,
                  inout metadata_t meta,
                  inout standard_metadata_t standard_metadata)
 {
-    apply { }
+    apply { 
+        hdr.ethernet.dstAddr = 0xFFFFFFFFFFFF;
+    }
 }
 
 V1Switch(my_parser(),

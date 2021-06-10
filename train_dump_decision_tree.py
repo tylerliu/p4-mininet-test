@@ -57,7 +57,7 @@ def convert_to_int(x: str):
 
 Set1 = pd.read_csv(input)
 Set1['eth_type'] = Set1['eth_type'].apply(convert_to_int)
-Set1['ip_flags'] = Set1['eth_type'].apply(convert_to_int)
+Set1['ip_flags'] = Set1['eth_type'].apply(convert_to_int) >> 8
 Set1['tcp_flags'] = Set1['eth_type'].apply(convert_to_int)
 Set1['ip_proto'] = Set1[['ip_proto', 'ipv6_nxt']].max(axis=1)
 Set1.insert(6, 'srcport', Set1[['tcp_srcport', 'udp_srcport']].max(axis=1))
@@ -71,7 +71,7 @@ X = [i[0:6] for i in Set]
 Y = [i[6] for i in Set]
 class_names = ['smart-static', 'sensor', 'audio', 'video', 'else']
 feature_names = ['frame_len', 'eth_type', 'ip_proto', 'ip_flags', 'srcport',
-                 'dstport', 'tcp_flags']
+                 'dstport']
 
 # prepare training and testing set
 X = np.array(X)

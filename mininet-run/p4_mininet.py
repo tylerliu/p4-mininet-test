@@ -31,9 +31,9 @@ class P4Host(Host):
             self.cmd(cmd)
 
         # disable IPv6
-        self.cmd("sysctl -w net.ipv6.conf.all.disable_ipv6=1")
-        self.cmd("sysctl -w net.ipv6.conf.default.disable_ipv6=1")
-        self.cmd("sysctl -w net.ipv6.conf.lo.disable_ipv6=1")
+        # self.cmd("sysctl -w net.ipv6.conf.all.disable_ipv6=1")
+        # self.cmd("sysctl -w net.ipv6.conf.default.disable_ipv6=1")
+        # self.cmd("sysctl -w net.ipv6.conf.lo.disable_ipv6=1")
 
         return r
 
