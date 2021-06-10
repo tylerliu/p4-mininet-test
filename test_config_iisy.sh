@@ -17,3 +17,4 @@ table_add lookup_code set_class 0x008800 => 2
 table_add lookup_code set_class 0x008400 => 3
 table_add lookup_code set_class 0x008401 => 4
 table_add lookup_code set_class 0x008801 => 5
+table_add lookup_code set_class 0x008000 => 6
