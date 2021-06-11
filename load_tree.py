@@ -173,3 +173,5 @@ p4RT = RuntimeAPI(args.pre, standard_client, mc_client)
 
 if args.m == "layers":
     load_tree_by_layers(p4RT, inputFile, outputFile)
+elif args.m == "features":
+    load_tree_by_features(p4RT, inputFile, outputFile)
