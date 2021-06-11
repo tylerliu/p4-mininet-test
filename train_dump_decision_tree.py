@@ -31,7 +31,6 @@ import pandas as pd
 import argparse
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import *
-from matplotlib import pyplot as plt
 from sklearn.tree import export_graphviz
 
 from sklearn import tree
@@ -88,11 +87,6 @@ dt.fit(X, Y)
 Predict_Y = dt.predict(X)
 print(np.mean(Predict_Y == Y))
 
-fig = plt.gcf()
-fig.set_size_inches(35.5, 20.5)
-tree.plot_tree(dt, fontsize=10)
-
-plt.show()
 
 # output
 clf = dt
@@ -133,7 +127,7 @@ print("The binary tree structure has {n} nodes and has "
 for i in range(n_nodes):
     if is_leaves[i]:
         print("node={node} type=leaf depth={depth} class={cls}".format(
-            depth=node_depth[i], node=i), file=outputFile, cls=class_names[np.argmax(value[i])])
+            depth=node_depth[i], node=i, cls=np.argmax(value[i])), file=outputFile)
     else:
         print("node={node} type=split depth={depth} feature={feature} "
               "threshold={threshold} left={left} right={right}".format(

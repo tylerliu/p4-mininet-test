@@ -1,4 +1,5 @@
 import sys
+sys.path.append("/usr/local/lib/python3.6/site-packages")
 import argparse
 import math
 
@@ -63,7 +64,7 @@ def load_tree_by_layers(p4RT: RuntimeAPI, configFile, logFile):
             # right child is a leaf node
             actionName = "set_class"
 
-            leftCmd = "{table} {action} {node} {range} => {label} 0".format(table=tableName, action=actionName, node=node, range=rightRange, label=nodeDict[info["right"]]["class"])
+            rightCmd = "{table} {action} {node} {range} => {label} 0".format(table=tableName, action=actionName, node=node, range=rightRange, label=nodeDict[info["right"]]["class"])
 
         p4RT.do_table_add(leftCmd)
         p4RT.do_table_add(rightCmd)
