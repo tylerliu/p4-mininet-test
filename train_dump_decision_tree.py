@@ -54,29 +54,33 @@ def convert_to_int(x: str):
 
     return int(x, 16)
 
+def readCSV(input):
+    Set1 = pd.read_csv(input)
+    Set1['eth_type'] = Set1['eth_type'].apply(convert_to_int)
+    Set1['ip_flags'] = Set1['ip_flags'].apply(convert_to_int)
+    Set1['ip_flags'] = Set1['ip_flags'].apply(lambda x: x >> 12)
+    Set1['tcp_flags'] = Set1['tcp_flags'].apply(convert_to_int)
+    Set1['ip_proto'] = Set1[['ip_proto', 'ipv6_nxt']].max(axis=1)
+    Set1.insert(6, 'srcport', Set1[['tcp_srcport', 'udp_srcport']].max(axis=1))
+    Set1.insert(7, 'dstport', Set1[['tcp_dstport', 'udp_dstport']].max(axis=1))
+    Set1 = Set1.drop(
+        columns=['tcp_srcport', 'udp_srcport', 'tcp_dstport', 'udp_dstport', 'ipv6_opt', 'tcp_flags', 'ipv6_nxt'])
 
-Set1 = pd.read_csv(input)
-Set1['eth_type'] = Set1['eth_type'].apply(convert_to_int)
-Set1['ip_flags'] = Set1['eth_type'].apply(convert_to_int) >> 8
-Set1['tcp_flags'] = Set1['eth_type'].apply(convert_to_int)
-Set1['ip_proto'] = Set1[['ip_proto', 'ipv6_nxt']].max(axis=1)
-Set1.insert(6, 'srcport', Set1[['tcp_srcport', 'udp_srcport']].max(axis=1))
-Set1.insert(7, 'dstport', Set1[['tcp_dstport', 'udp_dstport']].max(axis=1))
-Set1 = Set1.drop(
-    columns=['tcp_srcport', 'udp_srcport', 'tcp_dstport', 'udp_dstport', 'ipv6_opt', 'tcp_flags', 'ipv6_nxt'])
-print(Set1.columns)
+    Set = Set1.values.tolist()
+    X = [i[0:6] for i in Set]
+    Y = [i[6] for i in Set]
+    X = np.array(X)
+    Y = np.array(Y)
+    return (X, Y)
 
-Set = Set1.values.tolist()
-X = [i[0:6] for i in Set]
-Y = [i[6] for i in Set]
+
 class_names = ['smart-static', 'sensor', 'audio', 'video', 'else']
 feature_names = ['frame_len', 'eth_type', 'ip_proto', 'ip_flags', 'srcport',
                  'dstport']
 
 # prepare training and testing set
-X = np.array(X)
-Y = np.array(Y)
 
+X, Y = readCSV(input)
 # decision tree fit
 
 dt = DecisionTreeClassifier(max_depth=5)
