@@ -36,6 +36,7 @@ struct metadata {
     bit<5> pkt_len_code;
     bit<5> eth_type_code;
     bit<5> ip_proto_code;
+    bit<5> ip_flags_code;
     bit<5> srcport_code;
     bit<5> dstport_code;
     bit<7> unused; 
@@ -128,6 +129,10 @@ control MyIngress(inout headers_t hdr,
         meta.ip_proto_code = code;
     }
 
+    action set_ip_flags_code(bit<5> code){
+        meta.ip_flags_code = code;
+    }
+
     action set_eth_type_code(bit<5> code){
         meta.eth_type_code = code;
     }
@@ -167,8 +172,8 @@ control MyIngress(inout headers_t hdr,
 
 //Lookup table - packet length
 
-    table lookup_len {
-        key = { standard_metadata.packet_length:ternary; }
+    table lookup_frame_len {
+        key = { standard_metadata.packet_length: range; }
 
         actions = {
             set_len_code;
@@ -182,7 +187,7 @@ control MyIngress(inout headers_t hdr,
 //Lookup table - ip protocol
 
     table lookup_ip_proto {
-        key = { hdr.ipv4.protocol :ternary; }
+        key = { hdr.ipv4.protocol: range; }
 
         actions = {
             set_ip_proto_code;
@@ -192,9 +197,22 @@ control MyIngress(inout headers_t hdr,
         default_action = NoAction;
     }
 
+//Lookup table - ip protocol
+
+    table lookup_ip_flags {
+        key = { hdr.ipv4.flags: range; }
+
+        actions = {
+            set_ip_flags_code;
+            NoAction;
+        }
+        size = 63;
+        default_action = NoAction;
+    }
+
 //Lookup table - ethernet type
     table lookup_eth_type {
-        key = { hdr.ethernet.etherType:ternary; }
+        key = { hdr.ethernet.etherType: range; }
 
         actions = {
             set_eth_type_code;
@@ -207,7 +225,7 @@ control MyIngress(inout headers_t hdr,
 
 //Lookup table - TCP source port
      table lookup_srcport {
-        key = { hdr.tcp_udp.srcPort:ternary; }
+        key = { hdr.tcp_udp.srcPort: range; }
 
         actions = {
             set_srcport_code;
@@ -219,7 +237,7 @@ control MyIngress(inout headers_t hdr,
 
 //Lookup table - TCP dest port
      table lookup_dstport {
-        key = { hdr.tcp_udp.dstPort:ternary; }
+        key = { hdr.tcp_udp.dstPort: range; }
 
         actions = {
             set_dstport_code;
@@ -231,7 +249,12 @@ control MyIngress(inout headers_t hdr,
 
 //Decision table - lookup code
      table lookup_code {
-        key = { meta.pkt_len_code++meta.eth_type_code++meta.ip_proto_code++meta.srcport_code++meta.dstport_code:exact @name("code"); }
+        key = { meta.pkt_len_code: range;
+        meta.eth_type_code: range;
+        meta.ip_proto_code: range;
+        meta.ip_flags_code: range;
+        meta.srcport_code: range;
+        meta.dstport_code: range; }
 
         actions = {
             drop_action;
@@ -253,7 +276,7 @@ control MyIngress(inout headers_t hdr,
         if (hdr.ipv6.isValid()) ipv6_match.apply();
         if (dropped) return;
        
-        lookup_len.apply();
+        lookup_frame_len.apply();
         
         if (hdr.ethernet.isValid()) {
             lookup_eth_type.apply();
@@ -261,6 +284,7 @@ control MyIngress(inout headers_t hdr,
 
         if (hdr.ipv4.isValid()) {
             lookup_ip_proto.apply();
+            lookup_ip_flags.apply();
         }
 
         if (hdr.tcp_udp.isValid()){
