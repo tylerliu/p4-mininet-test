@@ -5,15 +5,53 @@ import math
 
 from runtime_CLI import RuntimeAPI, get_parser, thrift_connect, load_json_config
 
-def feature_to_fieldno(feature: str):
-    fieldDict ={"frame_len": 0,
+fieldDict ={"frame_len": 0,
                 "eth_type": 1,
                 "ip_proto": 2,
                 "ip_flags": 3,
                 "srcport": 4,
                 "dstport": 5}
 
+def feature_to_fieldno(feature: str):
     return fieldDict[feature]
+
+def load_tree_by_features(p4RT: RuntimeAPI, configFile, logFile):
+    featureDict = dict()
+    # init feature dictionary
+    for feature in fieldDict.keys():
+        featureDict[feature] = list()
+
+    nodeDict = dict()
+    # parse node information
+    for line in configFile:
+        content = line.strip()
+        kvPairs = content.split(" ")
+        nodeInfo = dict()
+
+        for item in kvPairs:
+            temp = item.split("=")
+            nodeInfo[temp[0]] = temp[1]
+
+        nodeDict[nodeInfo["node"]] = nodeInfo
+
+    # compute features' splitting threshold
+    for node in nodeDict.keys():
+        info = nodeDict[node]
+        featureDict[info["feature"]].append(int(info["threshold"]))
+
+    # sort each feature's threshold list
+    featureCodes = dict()
+    for feature in featureDict.keys():
+        featureDict[feature] = sort(featureDict[feature])
+        featureCodes[feature] = dict()
+
+        for i in range(0, len(featureDict[feature])):
+            featureCodes[feature][featureDict[feature][i]] = i
+
+    # install feature tables
+    for feature in featureDict.keys():
+        p4RT.do_table_add("lookup_{field} set_{field}_code {start}->{stop} => {code} 0".format(field=feature, code = i))
+    
 
 def load_tree_by_layers(p4RT: RuntimeAPI, configFile, logFile):
     nodeDict = dict()
@@ -69,8 +107,6 @@ def load_tree_by_layers(p4RT: RuntimeAPI, configFile, logFile):
         p4RT.do_table_add(leftCmd)
         p4RT.do_table_add(rightCmd)
         print("Add two entries to {table}\nleft: {left}\nright: {right}".format(table=tableName, left=leftCmd, right=rightCmd), file=logFile)
-
-
 
 
 # Parse argument
