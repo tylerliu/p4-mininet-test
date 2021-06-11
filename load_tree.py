@@ -1,25 +1,32 @@
 import sys
+
+from numpy.core.getlimits import _discovered_machar
 sys.path.append("/usr/local/lib/python3.6/site-packages")
 import argparse
 import math
 
 from runtime_CLI import RuntimeAPI, get_parser, thrift_connect, load_json_config
 
-fieldDict ={"frame_len": 0,
-                "eth_type": 1,
-                "ip_proto": 2,
-                "ip_flags": 3,
-                "srcport": 4,
-                "dstport": 5}
+fieldDict = {"frame_len": 0,
+            "eth_type": 1,
+            "ip_proto": 2,
+            "ip_flags": 3,
+            "srcport": 4,
+            "dstport": 5}
 
 def feature_to_fieldno(feature: str):
     return fieldDict[feature]
+
+def fieldno_to_feature(fieldno):
+    for feature in fieldDict.keys():
+        if fieldDict[feature] == fieldno:
+            return feature
 
 def load_tree_by_features(p4RT: RuntimeAPI, configFile, logFile):
     featureDict = dict()
     # init feature dictionary
     for feature in fieldDict.keys():
-        featureDict[feature] = list()
+        featureDict[feature] = [0, 0xffffffff] # init with lower bound & upper bound
 
     nodeDict = dict()
     # parse node information
@@ -42,16 +49,50 @@ def load_tree_by_features(p4RT: RuntimeAPI, configFile, logFile):
     # sort each feature's threshold list
     featureCodes = dict()
     for feature in featureDict.keys():
-        featureDict[feature] = sort(featureDict[feature])
-        featureCodes[feature] = dict()
+        featureDict[feature] = sorted(featureDict[feature])
 
         for i in range(0, len(featureDict[feature])):
             featureCodes[feature][featureDict[feature][i]] = i
 
-    # install feature tables
-    for feature in featureDict.keys():
-        p4RT.do_table_add("lookup_{field} set_{field}_code {start}->{stop} => {code} 0".format(field=feature, code = i))
-    
+            # install feature tables at the same time
+            if i < len(featureDict[feature]) - 1:
+                cmd = "lookup_{field} set_{field}_code {start}->{stop} => {code} 0".format(field=feature, code = i, start=featureDict[feature][i], stop=featureDict[feature][i + 1])
+                p4RT.do_table_add(cmd)
+                print(cmd, file=logFile)
+
+    # recursively depth-first traverse decision-tree
+    def DfsDT(p4RT: RuntimeAPI, node: str, splitPoints: list(), directions:list(), logFile):
+        info = nodeDict[node]
+        if info["type"] == "leaf":
+            # leaf node, add a corresponding entry
+            cmd = "lookup_code set_class "
+            for i in range(0, len(splitPoints)):
+                # iterate on features
+                if directions[i] == 1:
+                    # greater than or equal
+                    cmd += "{start}->0xffffffff ".format(start=featureDict[fieldno_to_feature(i)][splitPoints])
+                else:
+                    # less than
+                    cmd += "0->{stop} ".format(stop=featureDict[fieldno_to_feature(i)][splitPoints] - 1)
+
+            cmd += "=> {label} 0".format(label=info["class"])
+            p4RT.do_table_add(cmd)
+            print(cmd, file=logFile)
+        else:
+            # split node
+            splitPoints[feature_to_fieldno(info["feature"])] = featureCodes[info["feature"]][int(info["threshold"])]
+            directions[feature_to_fieldno(info["feature"])] = 0
+            DfsDT(p4RT, info["left"], nodeDict, featureDict, splitPoints, directions, logFile)
+            directions[feature_to_fieldno(info["feature"])] = 1
+            DfsDT(p4RT, info["right"], nodeDict, featureDict, splitPoints, directions, logFile)
+
+            # recover
+            splitPoints[feature_to_fieldno(info["feature"])] = 0
+            directions[feature_to_fieldno(info["feature"])] = 0
+
+    splits = [0] * len(featureDict.keys())
+    directs = [0] * len(featureDict.keys())
+    DfsDT(p4RT, "0", splitPoints=splits, directions=directs, logFile=logFile)
 
 def load_tree_by_layers(p4RT: RuntimeAPI, configFile, logFile):
     nodeDict = dict()
