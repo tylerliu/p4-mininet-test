@@ -9,16 +9,24 @@
   - also make sure xquartz allows incoming network connection
 
 ## Files:
+
+### src folder
+- tree.p4: the current p4 program from decision tree model.
+- tree_hyper.p4: the current p4 program from decision tree model with dual feature selection.
+- iisy_decision_tree.p4: the IIsy decision tree data plane, refitted from the NetFPGA version.
+- header.p4: The common header definitions.
+  
+### example_command_config folder
+- test_config_tree.sh: the test table configuration for `tree.p4` - should be supplied by training script. 
+- test_config_hyper.sh: the test table configuration for `tree-hyper.p4` - should be supplied by training script. 
+- test_config_iisy.sh: the test table configuration for `iisy_decision_tree.p4` - should be supplied by training script. 
+
+### Main directory
 - mininet-run: script for running mininet simulation with p4
 - csv_files.zip: the training feature data
 - Dockerfile: the dockerfile for creating the p4 reference software router with mininet. 
 - iot_decision_tree.py: the training scirpt based on IIsy paper's training script. 
-- tree.p4: the current p4 program from decision tree model.
-- test_config_tree.sh: the test table configuration for `tree.p4` - should be supplied by training script. 
-- tree_hyper.p4: the current p4 program from decision tree model with dual feature selection.
-- test_config_hyper.sh: the test table configuration for `tree-hyper.p4` - should be supplied by training script. 
 - train_dump_decision_tree.py: the training script that dumps each decision node. 
-- iisy_decision_tree.p4: the IIsy decision tree data plane, refitted from the NetFPGA version.
 - IIsy_Data_Processing.ipynb: the python notebook to pre-process the dataset. 
 
 ### Versions:

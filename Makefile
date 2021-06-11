@@ -3,36 +3,37 @@ FLAGS=--target bmv2 --arch v1model --std p4-16
 
 DOCKER_NAME=bt
 
-all: tree.p4i tree-hyper.p4i iisy_decision_tree.p4i
+all: p4_build/tree.p4i p4_build/tree-hyper.p4i p4_build/iisy_decision_tree.p4i
 
-tree.p4i tree.json: tree.p4 headers.p4
-	$(COMPILER) $(FLAGS) $<
+p4_build/tree.p4i p4_build/tree.json: src/tree.p4 src/headers.p4
+	$(COMPILER) $(FLAGS) -o p4_build $<
 
-tree-hyper.p4i tree-hyper.json: tree-hyper.p4 headers.p4
-	$(COMPILER) $(FLAGS) $<
+p4_build/tree-hyper.p4i p4_build/tree-hyper.json: src/tree-hyper.p4 src/headers.p4
+	$(COMPILER) $(FLAGS) -o p4_build $<
 
-iisy_decision_tree.p4i iisy_decision_tree.json: iisy_decision_tree.p4 headers.p4
-	$(COMPILER) $(FLAGS) $<
+p4_build/iisy_decision_tree.p4i p4_build/iisy_decision_tree.json: src/iisy_decision_tree.p4 src/headers.p4
+	$(COMPILER) $(FLAGS) -o p4_build $<
 
-run: tree.p4i test_config_tree.sh
+run: p4_build/tree.p4i example_command_config/test_config_tree.sh
 	./mininet-run/single_switch_mininet.py  \
 	--behavioral-exe simple_switch \
-	--json tree.json \
-        --log-file switch_log_tree.txt
+	--json p4_build/tree.json \
+    --log-file example_command_config/switch_log_tree.txt \
+	--switch-config example_command_config/test_config_tree.sh
 
-run-hyper: tree-hyper.p4i test_config_hyper.sh
+run-hyper: p4_build/tree-hyper.p4i example_command_config/test_config_hyper.sh
 	./mininet-run/single_switch_mininet.py  \
 	--behavioral-exe simple_switch \
-	--json tree-hyper.json \
-        --log-file switch_log_tree_hyper.txt \
-	--switch-config test_config_hyper.sh
+	--json p4_build/tree-hyper.json \
+    --log-file switch_log_tree_hyper.txt \
+	--switch-config example_command_config/test_config_hyper.sh
 
-run-iisy: iisy_decision_tree.p4i test_config_iisy.sh
+run-iisy: p4_build/iisy_decision_tree.p4i example_command_config/test_config_iisy.sh
 	./mininet-run/single_switch_mininet.py  \
 	--behavioral-exe simple_switch \
-	--json iisy_decision_tree.json \
-        --log-file switch_log_tree_iisy.txt \
-	--switch-config test_config_iisy.sh
+	--json p4_build/iisy_decision_tree.json \
+    --log-file switch_log_tree_iisy.txt \
+	--switch-config example_command_config/test_config_iisy.sh
 
 docker-build: Dockerfile
 	docker build -t p4-decision-tree .
@@ -54,4 +55,4 @@ train: iot_decision_tree.py csv_files.zip
 	python3 iot_decision_tree.py -z csv_files.zip -i csv_files/16-09-23-labeled.csv -t csv_files/16-09-24-labeled.csv -o a.txt
 
 clean: 
-	rm -f *.json *.p4i
+	rm -rf p4_build/
