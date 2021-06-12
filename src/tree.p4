@@ -187,35 +187,33 @@ control my_ingress(inout headers_t hdr,
     table dt_level1{
 	    key = {
             meta.match_node:exact;
-            meta.match_key:range;
+            meta.match_key:lpm;
         }
         actions = {
             drop_action;
             set_class;
             to_next_level;
         }
-        size=4;
         default_action = drop_action;
     }
 
     table dt_level2{
 	    key = {
             meta.match_node:exact;
-            meta.match_key:range;
+            meta.match_key:lpm;
         }
         actions = {
             drop_action;
             set_class;
             to_next_level;
         }
-        size=16;
         default_action = drop_action;
     }
 
     table dt_level3{
 	    key = {
             meta.match_node:exact;
-            meta.match_key:range;
+            meta.match_key:lpm;
         }
         actions = {
             drop_action;
@@ -228,7 +226,7 @@ control my_ingress(inout headers_t hdr,
     table dt_level4{
 	    key = {
             meta.match_node:exact;
-            meta.match_key:range;
+            meta.match_key:lpm;
         }
         actions = {
             drop_action;
@@ -241,7 +239,7 @@ control my_ingress(inout headers_t hdr,
     table dt_level5{
 	    key = {
             meta.match_node:exact;
-            meta.match_key:range;
+            meta.match_key:lpm;
         }
         actions = {
             drop_action;

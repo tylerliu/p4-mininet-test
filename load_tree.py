@@ -5,6 +5,7 @@ from numpy.core.getlimits import _discovered_machar
 sys.path.append("/usr/local/lib/python3.6/site-packages")
 import argparse
 import math
+from segment import getPrefix
 
 from runtime_CLI import RuntimeAPI, get_parser, thrift_connect, load_json_config
 
@@ -122,36 +123,38 @@ def load_tree_by_layers(p4RT, configFile, logFile):
             continue
         tableName = "dt_level{}".format(int(info["depth"]) + 1)
         
-        leftRange = "0->{}".format(int(math.floor(float(info["threshold"]))))
-        rightRange = "{}->0xffffffff".format(int(math.ceil(float(info["threshold"])+0.01)))
+        leftRange = getPrefix(0, int(math.floor(float(info["threshold"]))))
+        rightRange = getPrefix(int(math.ceil(float(info["threshold"])+0.01)), 0xffffffff)
         leftCmd = ""
         rightCmd = ""
 
-        if nodeDict[info["left"]]["type"] == "split":
-            # left child is a split node
-            actionName = "to_next_level"
+        for leftPrefix in leftRange:
+            prefixStr = "0x%x/%d" % leftPrefix
+            if nodeDict[info["left"]]["type"] == "split":
+                # left child is a split node
+                actionName = "to_next_level"
+                leftCmd = "{table} {action} {node} {range} => {leftChild} {nextField}".format(table=tableName, action=actionName, node=node, range=prefixStr, leftChild=info["left"], nextField=feature_to_fieldno(nodeDict[info["left"]]["feature"]))
+            else:
+                # left child is a leaf node
+                actionName = "set_class"
+                leftCmd = "{table} {action} {node} {range} => {label}".format(table=tableName, action=actionName, node=node, range=prefixStr, label=nodeDict[info["left"]]["class"])
+            logFile.write("table_add %s\n" % leftCmd)
+            p4RT.do_table_add(leftCmd)
 
-            leftCmd = "{table} {action} {node} {range} => {leftChild} {nextField} 0".format(table=tableName, action=actionName, node=node, range=leftRange, leftChild=info["left"], nextField=feature_to_fieldno(nodeDict[info["left"]]["feature"]))
-        else:
-            # left child is a leaf node
-            actionName = "set_class"
+        for rightPrefix in rightRange:
+            prefixStr = "0x%x/%d" % rightPrefix
+            if nodeDict[info["right"]]["type"] == "split":
+                # right child is a split node
+                actionName = "to_next_level"
 
-            leftCmd = "{table} {action} {node} {range} => {label} 0".format(table=tableName, action=actionName, node=node, range=leftRange, label=nodeDict[info["left"]]["class"])
+                rightCmd = "{table} {action} {node} {range} => {rightChild} {nextField}".format(table=tableName, action=actionName, node=node, range=prefixStr, rightChild=info["right"], nextField=feature_to_fieldno(nodeDict[info["right"]]["feature"]))
+            else:
+                # right child is a leaf node
+                actionName = "set_class"
 
-        if nodeDict[info["right"]]["type"] == "split":
-            # right child is a split node
-            actionName = "to_next_level"
-
-            rightCmd = "{table} {action} {node} {range} => {rightChild} {nextField} 0".format(table=tableName, action=actionName, node=node, range=rightRange, rightChild=info["right"], nextField=feature_to_fieldno(nodeDict[info["right"]]["feature"]))
-        else:
-            # right child is a leaf node
-            actionName = "set_class"
-
-            rightCmd = "{table} {action} {node} {range} => {label} 0".format(table=tableName, action=actionName, node=node, range=rightRange, label=nodeDict[info["right"]]["class"])
-
-        p4RT.do_table_add(leftCmd)
-        p4RT.do_table_add(rightCmd)
-        print("Add two entries to {table}\nleft: {left}\nright: {right}".format(table=tableName, left=leftCmd, right=rightCmd), file=logFile)
+                rightCmd = "{table} {action} {node} {range} => {label}".format(table=tableName, action=actionName, node=node, range=prefixStr, label=nodeDict[info["right"]]["class"])
+            logFile.write("table_add %s\n" % rightCmd)
+            p4RT.do_table_add(rightCmd)
 
 
 # Parse argument
