@@ -121,7 +121,7 @@ control MyIngress(inout headers_t hdr,
     }
 
  
-    action set_len_code(bit<5> code){
+    action set_frame_len_code(bit<5> code){
         meta.pkt_len_code = code;
     }
     
@@ -176,7 +176,7 @@ control MyIngress(inout headers_t hdr,
         key = { standard_metadata.packet_length: range; }
 
         actions = {
-            set_len_code;
+            set_frame_len_code;
             NoAction;
         }
         size = 63;
