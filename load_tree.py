@@ -69,8 +69,7 @@ def load_tree_by_features(p4RT, configFile, logFile):
             if i < len(featureDict[feature]) - 1:
                 cmd = "lookup_{field} set_{field}_code {start}->{stop} => {code} 0".format(field=feature, code = i, 
                             start=int(element), stop=int(math.ceil(featureDict[feature][i + 1]+0.01)))
-                outputFile.write("table_add %s\n" % cmd)
-                print(cmd, file=logFile)
+                logFile.write("table_add %s\n" % cmd)
     
 
     def generate_Code(prefix, lookup_code, current_feature_index):
@@ -88,7 +87,7 @@ def load_tree_by_features(p4RT, configFile, logFile):
                     run_node = nodeDict[run_node]['right']
             # leaf
             sample_class = nodeDict[run_node]['class']
-            outputFile.write("table_add lookup_code set_class %d => %s\n" % (lookup_code, sample_class))
+            logFile.write("table_add lookup_code set_class %d => %s\n" % (lookup_code, sample_class))
             p4RT.do_table_add("lookup_code set_class %d => %s" % (lookup_code, sample_class))
 
 
