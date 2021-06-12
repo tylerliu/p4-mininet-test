@@ -44,7 +44,9 @@ args = parser.parse_args()
 
 input = args.i
 if args.o != sys.stdout:
-    outputFile = open(args.o, "w") 
+    outputFile = open(args.o, "w")
+else:
+    outputFile = sys.stdout
 
 
 def convert_to_int(x: str):

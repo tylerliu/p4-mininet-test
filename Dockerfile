@@ -10,6 +10,8 @@ RUN apt-get install -y --no-install-recommends \
     vim \
     xterm
 
+RUN pip install numpy
+
 WORKDIR /root
 
 COPY . .

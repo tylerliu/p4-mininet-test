@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 
 from numpy.core.getlimits import _discovered_machar
@@ -13,8 +14,16 @@ fieldDict = {"frame_len": 0,
             "ip_flags": 3,
             "srcport": 4,
             "dstport": 5}
+fieldList = ["frame_len", "eth_type", "ip_proto", "ip_flags", "srcport", "dstport"]
 
-def feature_to_fieldno(feature: str):
+maxDict = {"frame_len": 0x100000000,
+            "eth_type": 0x10000,
+            "ip_proto": 0x100,
+            "ip_flags": 0x8,
+            "srcport": 0x10000,
+            "dstport": 0x10000}
+
+def feature_to_fieldno(feature):
     return fieldDict[feature]
 
 def fieldno_to_feature(fieldno):
@@ -22,11 +31,11 @@ def fieldno_to_feature(fieldno):
         if fieldDict[feature] == fieldno:
             return feature
 
-def load_tree_by_features(p4RT: RuntimeAPI, configFile, logFile):
+def load_tree_by_features(p4RT, configFile, logFile):
     featureDict = dict()
     # init feature dictionary
     for feature in fieldDict.keys():
-        featureDict[feature] = [0, 0xffffffff] # init with lower bound & upper bound
+        featureDict[feature] = [0, maxDict[feature]] # init with lower bound & upper bound
 
     nodeDict = dict()
     # parse node information
@@ -44,57 +53,47 @@ def load_tree_by_features(p4RT: RuntimeAPI, configFile, logFile):
     # compute features' splitting threshold
     for node in nodeDict.keys():
         info = nodeDict[node]
-        featureDict[info["feature"]].append(int(info["threshold"]))
+        if info["type"] == "split":
+            featureDict[info["feature"]].append(int(float(info["threshold"])))
 
     # sort each feature's threshold list
     featureCodes = dict()
     for feature in featureDict.keys():
         featureDict[feature] = sorted(featureDict[feature])
+        featureCodes[feature] = {}
 
-        for i in range(0, len(featureDict[feature])):
-            featureCodes[feature][featureDict[feature][i]] = i
+        for i, element in enumerate(featureDict[feature]):
+            featureCodes[feature][element] = i
 
             # install feature tables at the same time
             if i < len(featureDict[feature]) - 1:
-                cmd = "lookup_{field} set_{field}_code {start}->{stop} => {code} 0".format(field=feature, code = i, start=featureDict[feature][i], stop=featureDict[feature][i + 1])
-                p4RT.do_table_add(cmd)
+                cmd = "lookup_{field} set_{field}_code {start}->{stop} => {code} 0".format(field=feature, code = i, start=element, stop=featureDict[feature][i + 1] - 1)
+                outputFile.write("table_add %s\n" % cmd)
                 print(cmd, file=logFile)
+    
 
-    # recursively depth-first traverse decision-tree
-    def DfsDT(p4RT: RuntimeAPI, node: str, splitPoints: list(), directions:list(), logFile):
-        info = nodeDict[node]
-        if info["type"] == "leaf":
-            # leaf node, add a corresponding entry
-            cmd = "lookup_code set_class "
-            for i in range(0, len(splitPoints)):
-                # iterate on features
-                if directions[i] == 1:
-                    # greater than or equal
-                    cmd += "{start}->0xffffffff ".format(start=featureDict[fieldno_to_feature(i)][splitPoints])
-                else:
-                    # less than
-                    cmd += "0->{stop} ".format(stop=featureDict[fieldno_to_feature(i)][splitPoints] - 1)
-
-            cmd += "=> {label} 0".format(label=info["class"])
-            p4RT.do_table_add(cmd)
-            print(cmd, file=logFile)
+    def generate_Code(prefix, lookup_code, current_feature_index):
+        if current_feature_index != len(fieldList):
+            for i in range(len(featureDict[fieldList[current_feature_index]]) - 1):
+                generate_Code(prefix + [i], (lookup_code << 5) + i, current_feature_index + 1)
         else:
-            # split node
-            splitPoints[feature_to_fieldno(info["feature"])] = featureCodes[info["feature"]][int(info["threshold"])]
-            directions[feature_to_fieldno(info["feature"])] = 0
-            DfsDT(p4RT, info["left"], nodeDict, featureDict, splitPoints, directions, logFile)
-            directions[feature_to_fieldno(info["feature"])] = 1
-            DfsDT(p4RT, info["right"], nodeDict, featureDict, splitPoints, directions, logFile)
+            sample = [featureDict[fieldList[i]][e] for i, e in enumerate(prefix)]
+            run_node = '0'
+            while nodeDict[run_node]['type'] == 'split':
+                sample_value = sample[feature_to_fieldno(nodeDict[run_node]['feature'])]
+                if sample_value <= nodeDict[run_node]['threshold']:
+                    run_node = nodeDict[run_node]['left']
+                else:
+                    run_node = nodeDict[run_node]['right']
+            # leaf
+            sample_class = nodeDict[run_node]['class']
+            outputFile.write("table_add lookup_code set_class %d => %s\n" % (lookup_code, sample_class))
+            p4RT.do_table_add("lookup_code set_class %d => %s" % (lookup_code, sample_class))
 
-            # recover
-            splitPoints[feature_to_fieldno(info["feature"])] = 0
-            directions[feature_to_fieldno(info["feature"])] = 0
 
-    splits = [0] * len(featureDict.keys())
-    directs = [0] * len(featureDict.keys())
-    DfsDT(p4RT, "0", splitPoints=splits, directions=directs, logFile=logFile)
+    generate_Code([], 0, 0)
 
-def load_tree_by_layers(p4RT: RuntimeAPI, configFile, logFile):
+def load_tree_by_layers(p4RT, configFile, logFile):
     nodeDict = dict()
     # parse node information
     for line in configFile:

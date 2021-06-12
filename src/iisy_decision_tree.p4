@@ -39,7 +39,7 @@ struct metadata {
     bit<5> ip_flags_code;
     bit<5> srcport_code;
     bit<5> dstport_code;
-    bit<7> unused; 
+    bit<2> unused; 
 }
 
 /*************************************************************************
@@ -249,18 +249,13 @@ control MyIngress(inout headers_t hdr,
 
 //Decision table - lookup code
      table lookup_code {
-        key = { meta.pkt_len_code: range;
-        meta.eth_type_code: range;
-        meta.ip_proto_code: range;
-        meta.ip_flags_code: range;
-        meta.srcport_code: range;
-        meta.dstport_code: range; }
+        key = { meta.pkt_len_code++meta.eth_type_code++meta.ip_proto_code++meta.ip_flags_code++meta.srcport_code++meta.dstport_code: exact @name("code");}
 
         actions = {
             drop_action;
             set_class;
         }
-        size = 64;
+        size = 4096;
         default_action = drop_action;
     }
 
