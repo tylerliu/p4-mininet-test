@@ -68,7 +68,7 @@ def load_tree_by_features(p4RT, configFile, logFile):
             # install feature tables at the same time
             if i < len(featureDict[feature]) - 1:
                 cmd = "lookup_{field} set_{field}_code {start}->{stop} => {code} 0".format(field=feature, code = i, 
-                            start=int(element), stop=int(math.ceil(featureDict[feature][i + 1]+0.01)))
+                            start=int(math.ceil(element+0.01)), stop=int(featureDict[feature][i + 1]))
                 logFile.write("table_add %s\n" % cmd)
     
 
