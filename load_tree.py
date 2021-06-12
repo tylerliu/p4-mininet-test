@@ -35,7 +35,7 @@ def load_tree_by_features(p4RT, configFile, logFile):
     featureDict = dict()
     # init feature dictionary
     for feature in fieldDict.keys():
-        featureDict[feature] = [-1, maxDict[feature]] # init with lower bound & upper bound
+        featureDict[feature] = {-1, maxDict[feature]} # init with lower bound & upper bound
 
     nodeDict = dict()
     # parse node information
@@ -54,12 +54,12 @@ def load_tree_by_features(p4RT, configFile, logFile):
     for node in nodeDict.keys():
         info = nodeDict[node]
         if info["type"] == "split":
-            featureDict[info["feature"]].append(float(info["threshold"]))
+            featureDict[info["feature"]].add(float(info["threshold"]))
 
     # sort each feature's threshold list
     featureCodes = dict()
     for feature in featureDict.keys():
-        featureDict[feature] = sorted(featureDict[feature])
+        featureDict[feature] = sorted(list(featureDict[feature]))
         featureCodes[feature] = {}
 
         for i, element in enumerate(featureDict[feature]):
@@ -77,14 +77,18 @@ def load_tree_by_features(p4RT, configFile, logFile):
             for i in range(len(featureDict[fieldList[current_feature_index]]) - 1):
                 generate_Code(prefix + [i], (lookup_code << 5) + i, current_feature_index + 1)
         else:
-            sample = [featureDict[fieldList[i]][e] for i, e in enumerate(prefix)]
+            # use right side
+            sample = [int(math.ceil(featureDict[fieldList[i]][e]+0.01)) for i, e in enumerate(prefix)]
             run_node = '0'
+            # print(sample, lookup_code)
+            # print(run_node)
             while nodeDict[run_node]['type'] == 'split':
                 sample_value = sample[feature_to_fieldno(nodeDict[run_node]['feature'])]
                 if sample_value <= float(nodeDict[run_node]['threshold']):
                     run_node = nodeDict[run_node]['left']
                 else:
                     run_node = nodeDict[run_node]['right']
+                # print(run_node)
             # leaf
             sample_class = nodeDict[run_node]['class']
             logFile.write("table_add lookup_code set_class %d => %s\n" % (lookup_code, sample_class))
