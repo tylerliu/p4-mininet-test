@@ -70,6 +70,7 @@ def load_tree_by_features(p4RT, configFile, logFile):
                 cmd = "lookup_{field} set_{field}_code {start}->{stop} => {code} 0".format(field=feature, code = i, 
                             start=int(math.ceil(element+0.01)), stop=int(featureDict[feature][i + 1]))
                 logFile.write("table_add %s\n" % cmd)
+                p4RT.do_table_add(cmd)
     
 
     def generate_Code(prefix, lookup_code, current_feature_index):
