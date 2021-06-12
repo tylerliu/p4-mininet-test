@@ -16,12 +16,12 @@ fieldDict = {"frame_len": 0,
             "dstport": 5}
 fieldList = ["frame_len", "eth_type", "ip_proto", "ip_flags", "srcport", "dstport"]
 
-maxDict = {"frame_len": 0x100000000,
-            "eth_type": 0x10000,
-            "ip_proto": 0x100,
-            "ip_flags": 0x8,
-            "srcport": 0x10000,
-            "dstport": 0x10000}
+maxDict = {"frame_len": 0xFFFFFFFF,
+            "eth_type": 0xFFFF,
+            "ip_proto": 0xFF,
+            "ip_flags": 0x7,
+            "srcport": 0xFFFF,
+            "dstport": 0xFFFF}
 
 def feature_to_fieldno(feature):
     return fieldDict[feature]
@@ -35,7 +35,7 @@ def load_tree_by_features(p4RT, configFile, logFile):
     featureDict = dict()
     # init feature dictionary
     for feature in fieldDict.keys():
-        featureDict[feature] = [0, maxDict[feature]] # init with lower bound & upper bound
+        featureDict[feature] = [-1, maxDict[feature]] # init with lower bound & upper bound
 
     nodeDict = dict()
     # parse node information
@@ -54,7 +54,7 @@ def load_tree_by_features(p4RT, configFile, logFile):
     for node in nodeDict.keys():
         info = nodeDict[node]
         if info["type"] == "split":
-            featureDict[info["feature"]].append(int(float(info["threshold"])))
+            featureDict[info["feature"]].append(float(info["threshold"]))
 
     # sort each feature's threshold list
     featureCodes = dict()
@@ -67,7 +67,8 @@ def load_tree_by_features(p4RT, configFile, logFile):
 
             # install feature tables at the same time
             if i < len(featureDict[feature]) - 1:
-                cmd = "lookup_{field} set_{field}_code {start}->{stop} => {code} 0".format(field=feature, code = i, start=element, stop=featureDict[feature][i + 1] - 1)
+                cmd = "lookup_{field} set_{field}_code {start}->{stop} => {code} 0".format(field=feature, code = i, 
+                            start=int(element), stop=int(math.ceil(featureDict[feature][i + 1]+0.01)))
                 outputFile.write("table_add %s\n" % cmd)
                 print(cmd, file=logFile)
     
@@ -81,7 +82,7 @@ def load_tree_by_features(p4RT, configFile, logFile):
             run_node = '0'
             while nodeDict[run_node]['type'] == 'split':
                 sample_value = sample[feature_to_fieldno(nodeDict[run_node]['feature'])]
-                if sample_value <= int(float(nodeDict[run_node]['threshold'])):
+                if sample_value <= float(nodeDict[run_node]['threshold']):
                     run_node = nodeDict[run_node]['left']
                 else:
                     run_node = nodeDict[run_node]['right']
@@ -117,8 +118,8 @@ def load_tree_by_layers(p4RT, configFile, logFile):
             continue
         tableName = "dt_level{}".format(int(info["depth"]) + 1)
         
-        leftRange = "0->{}".format(int(math.ceil(float(info["threshold"]))))
-        rightRange = "{}->0xffffffff".format(int(math.ceil(float(info["threshold"]))))
+        leftRange = "0->{}".format(int(math.floor(float(info["threshold"]))))
+        rightRange = "{}->0xffffffff".format(int(math.ceil(float(info["threshold"])+0.01)))
         leftCmd = ""
         rightCmd = ""
 
