@@ -81,7 +81,7 @@ def load_tree_by_features(p4RT, configFile, logFile):
             run_node = '0'
             while nodeDict[run_node]['type'] == 'split':
                 sample_value = sample[feature_to_fieldno(nodeDict[run_node]['feature'])]
-                if sample_value <= nodeDict[run_node]['threshold']:
+                if sample_value <= int(float(nodeDict[run_node]['threshold'])):
                     run_node = nodeDict[run_node]['left']
                 else:
                     run_node = nodeDict[run_node]['right']
